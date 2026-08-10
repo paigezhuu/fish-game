@@ -3,48 +3,160 @@
 <head>
   <meta charset="UTF-8">
   <title>Fih</title>
-  
   <script src="/socket.io/socket.io.js"></script>
-  
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    #status { color: green; font-weight: bold; margin-bottom: 20px; }
-    li { margin-bottom: 5px; }
+    body { 
+      font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; 
+      padding: 20px; 
+      margin: 0;
+    }
+    
+    #status { color: green; font-weight: bold; margin-bottom: 10px; }
+    li { margin-bottom: 8px; }
+    
+    #game-screen { display: none; }
+    #login-screen { margin-top: 50px; text-align: center; }
+    
+    input { padding: 8px; font-size: 16px; margin-right: 10px; }
+    button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
+
+    #change-name-btn {
+      font-size: 12px;
+      font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; 
+      padding: 4px 8px;
+      margin-bottom: 20px;
+      background-color: #e0e0e0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      color: #333;
+    }
+    #change-name-btn:hover { background-color: #d0d0d0; }
+
+    #game-layout {
+      display: flex; 
+      justify-content: space-between;
+      gap: 30px;
+    }
+
+    #main-content {
+      flex: 1; 
+    }
+
+    #sidebar {
+      width: 250px; 
+      background-color: #f8f9fa; 
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    #sidebar h2 {
+      margin-top: 0;
+      font-size: 20px;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 10px;
+    }
+
+    #player-list {
+      list-style-type: none; 
+      padding: 0;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
-  
-  <h1>Fish Multiplayer Lobby</h1>
-  
-  <div id="status">Connecting to server...</div>
-  
-  <h2>Players in Lobby:</h2>
-  <ul id="player-list">
-  </ul>
+
+  <div id="login-screen">
+    <h2>FISH Multiplayer</h2>
+    <input type="text" id="username-input" placeholder="Enter your name..." />
+    <button onclick="joinGame()">Join Lobby</button>
+  </div>
+
+  <div id="game-screen">
+    
+    <div id="game-layout">
+      
+      <div id="main-content">
+        <h1>FISH Multiplayer Lobby</h1>
+        <div id="status">Connecting to server...</div>
+        
+        <button id="change-name-btn" onclick="changeName()">Change Name</button>
+        
+      </div>
+
+      <div id="sidebar">
+        <h2>Players in Lobby</h2>
+        <ul id="player-list"></ul>
+      </div>
+
+    </div>
+
+  </div>
 
   <script>
-    const socket = io();
+    let myId = sessionStorage.getItem('fish_player_id');
     
-    socket.on('connect', () => {
-      document.getElementById('status').innerText = 'Connected! Your ID: ' + socket.id;
-    });
+    let socket; 
 
-    socket.on('player_list_updated', (players) => {
-      const listElement = document.getElementById('player-list');
+    if (myId) {
+      showLobbyAndConnect();
+    }
+
+    function joinGame() {
+      const typedName = document.getElementById('username-input').value;
       
-      listElement.innerHTML = ''; 
+      if (typedName.trim() === "") {
+        alert("Please enter a name first!");
+        return;
+      }
+
+      myId = typedName;
+      sessionStorage.setItem('fish_player_id', myId);
+      showLobbyAndConnect();
+    }
+
+    function showLobbyAndConnect() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('game-screen').style.display = 'block';
+
+      socket = io();
       
-      players.forEach((playerId) => {
-        const listItem = document.createElement('li');
-        listItem.innerText = playerId;
-        
-        if (playerId === socket.id) {
-          listItem.innerText += " (You)";
-        }
-        
-        listElement.appendChild(listItem);
+      socket.on('connect', () => {
+        document.getElementById('status').innerText = 'Connected as: ' + myId;
+        socket.emit('register_player', myId);
       });
-    });
+
+      socket.on('player_list_updated', (players) => {
+        const listElement = document.getElementById('player-list');
+        listElement.innerHTML = ''; 
+        
+        players.forEach((playerId) => {
+          const listItem = document.createElement('li');
+          listItem.innerText = playerId;
+          
+          if (playerId === myId) {
+            listItem.innerHTML = `<strong>${playerId} (You)</strong>`; 
+          }
+          
+          listElement.appendChild(listItem);
+        });
+      });
+    }
+
+    function changeName() {
+      const newName = prompt("Enter your new name:", myId);
+      
+      if (newName && newName.trim() !== "") {
+        myId = newName.trim();
+        
+        sessionStorage.setItem('fish_player_id', myId);
+        
+        document.getElementById('status').innerText = 'Connected as: ' + myId;
+        
+        socket.emit('register_player', myId);
+      }
+    }
   </script>
 </body>
 </html>
