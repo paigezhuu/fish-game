@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Go Fish Game</title>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #status { color: green; font-weight: bold; margin-bottom: 20px; }
+    li { margin-bottom: 5px; }
+  </style>
+</head>
+<body>
+  
+  <h1>Go Fish Multiplayer Lobby</h1>
+  
+  <div id="status">Connecting to server...</div>
+  
+  <h2>Players in Lobby:</h2>
+  <ul id="player-list">
+  </ul>
+
+  <script>
+    const socket = io();
+    
+    socket.on('connect', () => {
+      document.getElementById('status').innerText = 'Connected! Your ID: ' + socket.id;
+    });
+
+    socket.on('player_list_updated', (players) => {
+      const listElement = document.getElementById('player-list');
+      
+      listElement.innerHTML = ''; 
+      
+      players.forEach((playerId) => {
+        const listItem = document.createElement('li');
+        listItem.innerText = playerId;
+        
+        if (playerId === socket.id) {
+          listItem.innerText += " (You)";
+        }
+        
+        listElement.appendChild(listItem);
+      });
+    });
+  </script>
+</body>
+</html>
