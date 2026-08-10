@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Fih</title>
-  
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body { 
@@ -23,7 +22,7 @@
 
     #change-name-btn {
       font-size: 12px;
-      font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+      font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; 
       padding: 4px 8px;
       margin-bottom: 20px;
       background-color: #e0e0e0;
@@ -67,14 +66,33 @@
   </style>
 </head>
 <body>
-  
-  <h1>Go Fish Multiplayer Lobby</h1>
-  
-  <div id="status">Connecting to server...</div>
-  
-  <h2>Players in Lobby:</h2>
-  <ul id="player-list">
-  </ul>
+
+  <div id="login-screen">
+    <h2>FISH Multiplayer</h2>
+    <input type="text" id="username-input" placeholder="Enter your name..." />
+    <button onclick="joinGame()">Join Lobby</button>
+  </div>
+
+  <div id="game-screen">
+    
+    <div id="game-layout">
+      
+      <div id="main-content">
+        <h1>FISH Multiplayer Lobby</h1>
+        <div id="status">Connecting to server...</div>
+        
+        <button id="change-name-btn" onclick="changeName()">Change Name</button>
+        
+      </div>
+
+      <div id="sidebar">
+        <h2>Players in Lobby</h2>
+        <ul id="player-list"></ul>
+      </div>
+
+    </div>
+
+  </div>
 
   <script>
     let myId = sessionStorage.getItem('fish_player_id');
