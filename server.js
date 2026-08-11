@@ -9,7 +9,6 @@ const io = new Server(server);
 app.use(express.static('public')); 
 
 let players = {};
-
 let games = {};
 
 io.on('connection', (socket) => {
@@ -29,7 +28,7 @@ io.on('connection', (socket) => {
     if (!games[roomName]) {
       games[roomName] = { host: playerName, players: [] };
     }
-    games[roomName].players.push(playerName);
+    games[roomName].players.push({ name: playerName, team: 1 });
     
     socket.join(roomName);
     
@@ -40,14 +39,44 @@ io.on('connection', (socket) => {
   socket.on('join_game', (roomName) => {
     if (!players[socket.id] || !games[roomName]) return;
     
+    if (games[roomName].players.length >= 6) {
+      socket.emit('error_message', 'This game is already full!');
+      return;
+    }
+
     const playerName = players[socket.id].name;
     players[socket.id].room = roomName;
     
-    games[roomName].players.push(playerName);
+    const team1Count = games[roomName].players.filter(p => p.team === 1).length;
+    const assignedTeam = team1Count < 3 ? 1 : 2;
+    
+    games[roomName].players.push({ name: playerName, team: assignedTeam });
     socket.join(roomName);
     
     io.emit('game_list_updated', games);
     io.to(roomName).emit('room_data_updated', games[roomName]);
+  });
+
+  socket.on('switch_team', () => {
+    if (!players[socket.id]) return;
+    
+    const roomName = players[socket.id].room;
+    const playerName = players[socket.id].name;
+    
+    if (roomName && games[roomName]) {
+      const playerObj = games[roomName].players.find(p => p.name === playerName);
+      if (playerObj) {
+        const targetTeam = playerObj.team === 1 ? 2 : 1;
+        const targetTeamCount = games[roomName].players.filter(p => p.team === targetTeam).length;
+        
+        if (targetTeamCount < 3) {
+          playerObj.team = targetTeam;
+          io.to(roomName).emit('room_data_updated', games[roomName]);
+        } else {
+          socket.emit('error_message', 'That team is already full!');
+        }
+      }
+    }
   });
 
   socket.on('kick_player', (targetName) => {
@@ -57,18 +86,17 @@ io.on('connection', (socket) => {
     const playerName = players[socket.id].name;
 
     if (roomName && games[roomName] && games[roomName].host === playerName) {
-      
       const targetSocketId = Object.keys(players).find(id => players[id].name === targetName);
 
       if (targetSocketId) {
         const targetSocket = io.sockets.sockets.get(targetSocketId);
         if (targetSocket) {
           targetSocket.leave(roomName);
-          targetSocket.emit('kicked_from_room');
+          targetSocket.emit('kicked_from_room'); 
         }
 
         players[targetSocketId].room = null;
-        games[roomName].players = games[roomName].players.filter(name => name !== targetName);
+        games[roomName].players = games[roomName].players.filter(p => p.name !== targetName);
 
         io.to(roomName).emit('room_data_updated', games[roomName]);
         io.emit('game_list_updated', games);
@@ -82,7 +110,7 @@ io.on('connection', (socket) => {
       const playerName = players[socket.id].name;
       
       if (roomName && games[roomName]) {
-        games[roomName].players = games[roomName].players.filter(name => name !== playerName);
+        games[roomName].players = games[roomName].players.filter(p => p.name !== playerName);
         socket.leave(roomName);
         players[socket.id].room = null; 
         
@@ -90,7 +118,7 @@ io.on('connection', (socket) => {
           delete games[roomName];
         } else {
           if (games[roomName].host === playerName) {
-            games[roomName].host = games[roomName].players[0];
+            games[roomName].host = games[roomName].players[0].name; 
           }
           io.to(roomName).emit('room_data_updated', games[roomName]);
         }
@@ -105,13 +133,13 @@ io.on('connection', (socket) => {
       const playerName = players[socket.id].name;
       
       if (roomName && games[roomName]) {
-        games[roomName].players = games[roomName].players.filter(name => name !== playerName);
+        games[roomName].players = games[roomName].players.filter(p => p.name !== playerName);
         
         if (games[roomName].players.length === 0) {
           delete games[roomName];
         } else {
           if (games[roomName].host === playerName) {
-            games[roomName].host = games[roomName].players[0];
+            games[roomName].host = games[roomName].players[0].name;
           }
           io.to(roomName).emit('room_data_updated', games[roomName]);
         }

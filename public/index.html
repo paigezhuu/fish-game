@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>FISH</title>
+  <title>Fih</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; padding: 20px; margin: 0; background-color: #f4f7f6; }
+    body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f4f7f6; }
     h1, h2, h3 { color: #333; margin-top: 0; }
     
     .screen { display: none; max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -14,10 +14,12 @@
     input { padding: 10px; font-size: 16px; margin-right: 10px; border: 1px solid #ccc; border-radius: 5px; width: 60%; }
     button { padding: 10px 16px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
     button:hover { background-color: #0056b3; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
     
     .btn-secondary { background-color: #6c757d; font-size: 14px; padding: 6px 12px; }
     .btn-secondary:hover { background-color: #5a6268; }
-
+    .btn-info { background-color: #506da7; font-size: 14px; padding: 6px 12px; }
+    .btn-info:hover { background-color: #138496; }
     .btn-start { background-color: #28a745; font-size: 14px; padding: 6px 12px; }
     .btn-start:hover { background-color: #218838; }
     .btn-kick { background-color: #dc3545; font-size: 12px; padding: 4px 8px; margin-left: 10px; }
@@ -26,13 +28,13 @@
     .game-item { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
     .game-item span { font-weight: bold; font-size: 18px; }
 
-    /* sidebar */
     .layout-container { display: flex; justify-content: space-between; gap: 30px; }
     .main-column { flex: 1; }
     .sidebar-column { width: 250px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
     .sidebar-column h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; font-size: 20px; }
+    .sidebar-column h3 { font-size: 16px; color: #555; margin-bottom: 5px; margin-top: 15px; }
     .player-list-style { list-style-type: none; padding: 0; margin: 0; }
-    .player-list-style li { margin-bottom: 8px; font-size: 16px; }
+    .player-list-style li { margin-bottom: 8px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
   </style>
 </head>
 <body>
@@ -44,49 +46,48 @@
     <button onclick="login()">Connect</button>
   </div>
 
-  <div id="rooms-screen" class="screen">
+=  <div id="rooms-screen" class="screen">
     <div class="layout-container">
-      
       <div class="main-column">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h2 id="welcome-message">Welcome!</h2>
           <button class="btn-secondary" onclick="changeName()">Change Name</button>
         </div>
-        
         <hr>
-        
         <h3>Create a New Game</h3>
         <input type="text" id="new-room-input" placeholder="e.g. Ms. Dih-claires vs. Ida Claire" />
         <button onclick="createGame()">Create Game</button>
-        
         <hr>
-
         <h3>Available Games</h3>
         <div id="active-games-list">
         </div>
       </div>
-
       <div class="sidebar-column">
         <h2>Players Online</h2>
         <ul id="global-player-list" class="player-list-style"></ul>
       </div>
-
     </div>
   </div>
 
   <div id="game-screen" class="screen">
     <div class="layout-container">
-      
       <div class="main-column">
         <h1 id="current-room-title">FISH Room</h1>
-        <p>Waiting for other players to join...</p>
+        <p>Waiting for players... (Max 6)</p>
         
         <button id="start-game-btn" class="btn-start" onclick="startGame()" style="display: none;">Start Game</button>
+        <button class="btn-info" onclick="switchTeam()">Switch Team</button>
         <button class="btn-secondary" onclick="leaveGame()" style="margin-top: 15px;">Leave Game</button>
       </div>
+      
       <div class="sidebar-column">
-        <h2>Players Here</h2>
-        <ul id="player-list" class="player-list-style"></ul>
+        <h2>Teams</h2>
+        
+        <h3>Team 1</h3>
+        <ul id="team-1-list" class="player-list-style"></ul>
+        
+        <h3>Team 2</h3>
+        <ul id="team-2-list" class="player-list-style"></ul>
       </div>
     </div>
   </div>
@@ -122,6 +123,10 @@
           socket.emit('register_player', myId);
         });
 
+        socket.on('error_message', (msg) => {
+          alert(msg);
+        });
+
         socket.on('global_player_list', (playerNames) => {
           const list = document.getElementById('global-player-list');
           list.innerHTML = ''; 
@@ -137,15 +142,19 @@
         });
 
         socket.on('room_data_updated', (roomData) => {
-          const listElement = document.getElementById('player-list');
-          listElement.innerHTML = ''; 
+          const team1List = document.getElementById('team-1-list');
+          const team2List = document.getElementById('team-2-list');
           
-          roomData.players.forEach((playerId) => {
+          team1List.innerHTML = ''; 
+          team2List.innerHTML = '';
+          
+          roomData.players.forEach((playerObj) => {
+            const playerId = playerObj.name;
             const listItem = document.createElement('li');
             
             let nameText = playerId;
             if (playerId === myId) nameText += " (You)";
-            if (playerId === roomData.host) nameText += " (Host)";
+            if (playerId === roomData.host) nameText += " 👑"; 
 
             const nameSpan = document.createElement('span');
             nameSpan.innerHTML = playerId === myId ? `<strong>${nameText}</strong>` : nameText;
@@ -159,7 +168,11 @@
               listItem.appendChild(kickBtn);
             }
             
-            listElement.appendChild(listItem);
+            if (playerObj.team === 1) {
+              team1List.appendChild(listItem);
+            } else {
+              team2List.appendChild(listItem);
+            }
           });
 
           const startBtn = document.getElementById('start-game-btn');
@@ -172,7 +185,8 @@
 
         socket.on('kicked_from_room', () => {
           alert('Immanuel threw a brick at your head and you died. #RIP');
-          document.getElementById('player-list').innerHTML = ''; 
+          document.getElementById('team-1-list').innerHTML = ''; 
+          document.getElementById('team-2-list').innerHTML = '';
           showScreen('rooms-screen');
         });
 
@@ -182,7 +196,7 @@
     }
 
     function changeName() {
-      const newName = prompt("Enter your new name:", myId);
+      const newName = prompt("wow so indecisive... enter ur new name:", myId);
       if (newName && newName.trim() !== "") {
         myId = newName.trim();
         sessionStorage.setItem('fish_player_id', myId);
@@ -208,8 +222,13 @@
 
     function leaveGame() {
       socket.emit('leave_game');
-      document.getElementById('player-list').innerHTML = ''; 
+      document.getElementById('team-1-list').innerHTML = ''; 
+      document.getElementById('team-2-list').innerHTML = '';
       showScreen('rooms-screen');
+    }
+
+    function switchTeam() {
+      socket.emit('switch_team');
     }
 
     function kickPlayer(playerName) {
@@ -217,7 +236,7 @@
     }
 
     function startGame() {
-      alert("Game Started");
+      alert("Game Started! (watson will finish)");
     }
 
     function updateGameListUI(games) {
@@ -233,13 +252,16 @@
 
       gameNames.forEach(roomName => {
         const playerCount = games[roomName].players.length;
+        const isFull = playerCount >= 6;
         
         const gameDiv = document.createElement('div');
         gameDiv.className = 'game-item';
         
         gameDiv.innerHTML = `
-          <span>${roomName} (${playerCount} players)</span>
-          <button onclick="joinGame('${roomName}')">Join Game</button>
+          <span>${roomName} (${playerCount}/6 players)</span>
+          <button onclick="joinGame('${roomName}')" ${isFull ? 'disabled' : ''}>
+            ${isFull ? 'FULL' : 'Join Game'}
+          </button>
         `;
         
         listContainer.appendChild(gameDiv);
