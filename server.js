@@ -40,7 +40,7 @@ io.on('connection', (socket) => {
     if (!players[socket.id] || !games[roomName]) return;
     
     if (games[roomName].players.length >= 6) {
-      socket.emit('error_message', 'This game is already full!');
+      socket.emit('error_message', 'that team is already full... they dont want u :(');
       return;
     }
 
@@ -148,6 +148,31 @@ io.on('connection', (socket) => {
       
       delete players[socket.id];
       io.emit('global_player_list', Object.values(players).map(p => p.name));
+    }
+  });
+
+  socket.on('chat_message', (msg) => {
+    if (!players[socket.id]) return;
+    
+    const roomName = players[socket.id].room;
+    const playerName = players[socket.id].name;
+
+    if (roomName) {
+      io.to(roomName).emit('room_chat_message', { sender: playerName, text: msg });
+    } else {
+      io.emit('global_chat_message', { sender: playerName, text: msg });
+    }
+  });
+
+  socket.on('typing', (data) => {
+    if (!players[socket.id]) return;
+    const roomName = players[socket.id].room;
+    const playerName = players[socket.id].name;
+
+    if (roomName && data.context === 'room') {
+      socket.to(roomName).emit('user_typing', { name: playerName, isTyping: data.isTyping, context: 'room' });
+    } else if (!roomName && data.context === 'lobby') {
+      socket.broadcast.emit('user_typing', { name: playerName, isTyping: data.isTyping, context: 'lobby' });
     }
   });
 });

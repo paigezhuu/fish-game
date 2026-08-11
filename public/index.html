@@ -4,38 +4,7 @@
   <meta charset="UTF-8">
   <title>Fih</title>
   <script src="/socket.io/socket.io.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; margin: 0; background-color: #f4f7f6; }
-    h1, h2, h3 { color: #333; margin-top: 0; }
-    
-    .screen { display: none; max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    #login-screen { display: block; text-align: center; margin-top: 50px; max-width: 400px; }
-    
-    input { padding: 10px; font-size: 16px; margin-right: 10px; border: 1px solid #ccc; border-radius: 5px; width: 60%; }
-    button { padding: 10px 16px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
-    button:hover { background-color: #0056b3; }
-    button:disabled { background-color: #ccc; cursor: not-allowed; }
-    
-    .btn-secondary { background-color: #6c757d; font-size: 14px; padding: 6px 12px; }
-    .btn-secondary:hover { background-color: #5a6268; }
-    .btn-info { background-color: #506da7; font-size: 14px; padding: 6px 12px; }
-    .btn-info:hover { background-color: #138496; }
-    .btn-start { background-color: #28a745; font-size: 14px; padding: 6px 12px; }
-    .btn-start:hover { background-color: #218838; }
-    .btn-kick { background-color: #dc3545; font-size: 12px; padding: 4px 8px; margin-left: 10px; }
-    .btn-kick:hover { background-color: #c82333; }
-
-    .game-item { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
-    .game-item span { font-weight: bold; font-size: 18px; }
-
-    .layout-container { display: flex; justify-content: space-between; gap: 30px; }
-    .main-column { flex: 1; }
-    .sidebar-column { width: 250px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
-    .sidebar-column h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; font-size: 20px; }
-    .sidebar-column h3 { font-size: 16px; color: #555; margin-bottom: 5px; margin-top: 15px; }
-    .player-list-style { list-style-type: none; padding: 0; margin: 0; }
-    .player-list-style li { margin-bottom: 8px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -46,7 +15,7 @@
     <button onclick="login()">Connect</button>
   </div>
 
-=  <div id="rooms-screen" class="screen">
+  <div id="rooms-screen" class="screen">
     <div class="layout-container">
       <div class="main-column">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -62,9 +31,22 @@
         <div id="active-games-list">
         </div>
       </div>
+      
       <div class="sidebar-column">
-        <h2>Players Online</h2>
-        <ul id="global-player-list" class="player-list-style"></ul>
+        <div class="sidebar-box">
+          <h2>Players Online</h2>
+          <ul id="global-player-list" class="player-list-style"></ul>
+        </div>
+        
+        <div class="sidebar-box">
+          <h3>Lobby Chat</h3>
+          <div class="chat-box" id="lobby-chat-box"></div>
+          <div id="lobby-typing-indicator" class="typing-indicator"></div>
+          <form class="chat-form" onsubmit="sendChat(event, 'lobby')">
+              <input id="lobby-chat-input" autocomplete="off" placeholder="yapathon.." oninput="handleTyping('lobby')" />
+              <button type="submit">Send</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -81,13 +63,24 @@
       </div>
       
       <div class="sidebar-column">
-        <h2>Teams</h2>
-        
-        <h3>Team 1</h3>
-        <ul id="team-1-list" class="player-list-style"></ul>
-        
-        <h3>Team 2</h3>
-        <ul id="team-2-list" class="player-list-style"></ul>
+        <div class="sidebar-box">
+          <h2>Teams</h2>
+          <h3>Team 1</h3>
+          <ul id="team-1-list" class="player-list-style"></ul>
+          
+          <h3>Team 2</h3>
+          <ul id="team-2-list" class="player-list-style"></ul>
+        </div>
+
+        <div class="sidebar-box">
+          <h3>Room Chat</h3>
+          <div class="chat-box" id="room-chat-box"></div>
+          <div id="room-typing-indicator" class="typing-indicator"></div>
+          <form class="chat-form" onsubmit="sendChat(event, 'room')">
+              <input id="room-chat-input" autocomplete="off" placeholder="yap..." oninput="handleTyping('room')" />
+              <button type="submit">Send</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -95,6 +88,10 @@
   <script>
     let myId = sessionStorage.getItem('fish_player_id');
     let socket; 
+    
+    let typingUsersLobby = [];
+    let typingUsersRoom = [];
+    let typingTimeout;
 
     if (myId) {
       document.getElementById('username-input').value = myId;
@@ -108,7 +105,7 @@
 
     function login() {
       const typedName = document.getElementById('username-input').value;
-      if (typedName.trim() === "") return alert("Please enter a name!");
+      if (typedName.trim() === "") return alert("enter yo name");
 
       myId = typedName.trim();
       sessionStorage.setItem('fish_player_id', myId);
@@ -154,7 +151,7 @@
             
             let nameText = playerId;
             if (playerId === myId) nameText += " (You)";
-            if (playerId === roomData.host) nameText += " 👑"; 
+            if (playerId === roomData.host) nameText += " (Group Leader)"; 
 
             const nameSpan = document.createElement('span');
             nameSpan.innerHTML = playerId === myId ? `<strong>${nameText}</strong>` : nameText;
@@ -187,7 +184,38 @@
           alert('Immanuel threw a brick at your head and you died. #RIP');
           document.getElementById('team-1-list').innerHTML = ''; 
           document.getElementById('team-2-list').innerHTML = '';
+          document.getElementById('room-chat-box').innerHTML = ''; 
           showScreen('rooms-screen');
+        });
+
+        socket.on('global_chat_message', (data) => {
+          const box = document.getElementById('lobby-chat-box');
+          box.innerHTML += `<div class="chat-message"><strong>${data.sender}:</strong> ${data.text}</div>`;
+          box.scrollTop = box.scrollHeight;
+        });
+
+        socket.on('room_chat_message', (data) => {
+          const box = document.getElementById('room-chat-box');
+          box.innerHTML += `<div class="chat-message"><strong>${data.sender}:</strong> ${data.text}</div>`;
+          box.scrollTop = box.scrollHeight;
+        });
+
+        socket.on('user_typing', (data) => {
+          let targetArray = data.context === 'lobby' ? typingUsersLobby : typingUsersRoom;
+          let indicatorId = data.context === 'lobby' ? 'lobby-typing-indicator' : 'room-typing-indicator';
+
+          if (data.isTyping && !targetArray.includes(data.name)) {
+            targetArray.push(data.name);
+          } else if (!data.isTyping) {
+            const index = targetArray.indexOf(data.name);
+            if (index > -1) targetArray.splice(index, 1);
+          }
+
+          let text = '';
+          if (targetArray.length === 1) text = `${targetArray[0]} is typing...`;
+          else if (targetArray.length > 1) text = 'Several people are typing...';
+
+          document.getElementById(indicatorId).innerText = text;
         });
 
       } else {
@@ -210,12 +238,14 @@
       if (roomName.trim() === "") return alert("Enter a room name cuh");
       
       document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
+      document.getElementById('room-chat-box').innerHTML = '';
       socket.emit('create_game', roomName);
       showScreen('game-screen');
     }
 
     function joinGame(roomName) {
       document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
+      document.getElementById('room-chat-box').innerHTML = '';
       socket.emit('join_game', roomName);
       showScreen('game-screen');
     }
@@ -224,6 +254,7 @@
       socket.emit('leave_game');
       document.getElementById('team-1-list').innerHTML = ''; 
       document.getElementById('team-2-list').innerHTML = '';
+      document.getElementById('room-chat-box').innerHTML = ''; 
       showScreen('rooms-screen');
     }
 
@@ -237,6 +268,29 @@
 
     function startGame() {
       alert("Game Started! (watson will finish)");
+    }
+
+    function handleTyping(context) {
+      socket.emit('typing', { context: context, isTyping: true });
+      clearTimeout(typingTimeout);
+      
+      typingTimeout = setTimeout(() => {
+        socket.emit('typing', { context: context, isTyping: false });
+      }, 2000);
+    }
+
+    function sendChat(event, context) {
+      event.preventDefault(); 
+      const input = document.getElementById(`${context}-chat-input`);
+      const msg = input.value;
+      
+      if (msg.trim() !== '') {
+        socket.emit('chat_message', msg);
+        input.value = '';
+        
+        socket.emit('typing', { context: context, isTyping: false });
+        clearTimeout(typingTimeout);
+      }
     }
 
     function updateGameListUI(games) {
@@ -261,8 +315,8 @@
           <span>${roomName} (${playerCount}/6 players)</span>
           <button onclick="joinGame('${roomName}')" ${isFull ? 'disabled' : ''}>
             ${isFull ? 'FULL' : 'Join Game'}
-          </button>
-        `;
+          </button>`
+        ;
         
         listContainer.appendChild(gameDiv);
       });
