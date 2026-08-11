@@ -2,160 +2,248 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fih</title>
+  <title>FISH</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { 
-      font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; 
-      padding: 20px; 
-      margin: 0;
-    }
+    body { font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; padding: 20px; margin: 0; background-color: #f4f7f6; }
+    h1, h2, h3 { color: #333; margin-top: 0; }
     
-    #status { color: green; font-weight: bold; margin-bottom: 10px; }
-    li { margin-bottom: 8px; }
+    .screen { display: none; max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    #login-screen { display: block; text-align: center; margin-top: 50px; max-width: 400px; }
     
-    #game-screen { display: none; }
-    #login-screen { margin-top: 50px; text-align: center; }
+    input { padding: 10px; font-size: 16px; margin-right: 10px; border: 1px solid #ccc; border-radius: 5px; width: 60%; }
+    button { padding: 10px 16px; font-size: 16px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 5px; }
+    button:hover { background-color: #0056b3; }
     
-    input { padding: 8px; font-size: 16px; margin-right: 10px; }
-    button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
+    .btn-secondary { background-color: #6c757d; font-size: 14px; padding: 6px 12px; }
+    .btn-secondary:hover { background-color: #5a6268; }
 
-    #change-name-btn {
-      font-size: 12px;
-      font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; 
-      padding: 4px 8px;
-      margin-bottom: 20px;
-      background-color: #e0e0e0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      color: #333;
-    }
-    #change-name-btn:hover { background-color: #d0d0d0; }
+    .btn-start { background-color: #28a745; font-size: 14px; padding: 6px 12px; }
+    .btn-start:hover { background-color: #218838; }
+    .btn-kick { background-color: #dc3545; font-size: 12px; padding: 4px 8px; margin-left: 10px; }
+    .btn-kick:hover { background-color: #c82333; }
 
-    #game-layout {
-      display: flex; 
-      justify-content: space-between;
-      gap: 30px;
-    }
+    .game-item { display: flex; justify-content: space-between; align-items: center; background: #e9ecef; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+    .game-item span { font-weight: bold; font-size: 18px; }
 
-    #main-content {
-      flex: 1; 
-    }
-
-    #sidebar {
-      width: 250px; 
-      background-color: #f8f9fa; 
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    #sidebar h2 {
-      margin-top: 0;
-      font-size: 20px;
-      border-bottom: 2px solid #ccc;
-      padding-bottom: 10px;
-    }
-
-    #player-list {
-      list-style-type: none; 
-      padding: 0;
-      margin: 0;
-    }
+    /* sidebar */
+    .layout-container { display: flex; justify-content: space-between; gap: 30px; }
+    .main-column { flex: 1; }
+    .sidebar-column { width: 250px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; }
+    .sidebar-column h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; font-size: 20px; }
+    .player-list-style { list-style-type: none; padding: 0; margin: 0; }
+    .player-list-style li { margin-bottom: 8px; font-size: 16px; }
   </style>
 </head>
 <body>
 
-  <div id="login-screen">
+  <div id="login-screen" class="screen">
     <h2>FISH Multiplayer</h2>
-    <input type="text" id="username-input" placeholder="Enter your name..." />
-    <button onclick="joinGame()">Join Lobby</button>
+    <input type="text" id="username-input" placeholder="enter yo name" />
+    <br><br>
+    <button onclick="login()">Connect</button>
   </div>
 
-  <div id="game-screen">
-    
-    <div id="game-layout">
+  <div id="rooms-screen" class="screen">
+    <div class="layout-container">
       
-      <div id="main-content">
-        <h1>FISH Multiplayer Lobby</h1>
-        <div id="status">Connecting to server...</div>
+      <div class="main-column">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2 id="welcome-message">Welcome!</h2>
+          <button class="btn-secondary" onclick="changeName()">Change Name</button>
+        </div>
         
-        <button id="change-name-btn" onclick="changeName()">Change Name</button>
+        <hr>
         
+        <h3>Create a New Game</h3>
+        <input type="text" id="new-room-input" placeholder="e.g. Ms. Dih-claires vs. Ida Claire" />
+        <button onclick="createGame()">Create Game</button>
+        
+        <hr>
+
+        <h3>Available Games</h3>
+        <div id="active-games-list">
+        </div>
       </div>
 
-      <div id="sidebar">
-        <h2>Players in Lobby</h2>
-        <ul id="player-list"></ul>
+      <div class="sidebar-column">
+        <h2>Players Online</h2>
+        <ul id="global-player-list" class="player-list-style"></ul>
       </div>
 
     </div>
+  </div>
 
+  <div id="game-screen" class="screen">
+    <div class="layout-container">
+      
+      <div class="main-column">
+        <h1 id="current-room-title">FISH Room</h1>
+        <p>Waiting for other players to join...</p>
+        
+        <button id="start-game-btn" class="btn-start" onclick="startGame()" style="display: none;">Start Game</button>
+        <button class="btn-secondary" onclick="leaveGame()" style="margin-top: 15px;">Leave Game</button>
+      </div>
+      <div class="sidebar-column">
+        <h2>Players Here</h2>
+        <ul id="player-list" class="player-list-style"></ul>
+      </div>
+    </div>
   </div>
 
   <script>
     let myId = sessionStorage.getItem('fish_player_id');
-    
     let socket; 
 
     if (myId) {
-      showLobbyAndConnect();
+      document.getElementById('username-input').value = myId;
+      login();
     }
 
-    function joinGame() {
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+      document.getElementById(screenId).style.display = 'block';
+    }
+
+    function login() {
       const typedName = document.getElementById('username-input').value;
-      
-      if (typedName.trim() === "") {
-        alert("Please enter a name first!");
-        return;
-      }
+      if (typedName.trim() === "") return alert("Please enter a name!");
 
-      myId = typedName;
+      myId = typedName.trim();
       sessionStorage.setItem('fish_player_id', myId);
-      showLobbyAndConnect();
-    }
-
-    function showLobbyAndConnect() {
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('game-screen').style.display = 'block';
-
-      socket = io();
       
-      socket.on('connect', () => {
-        document.getElementById('status').innerText = 'Connected as: ' + myId;
-        socket.emit('register_player', myId);
-      });
+      document.getElementById('welcome-message').innerText = `Welcome, ${myId}!`;
+      showScreen('rooms-screen');
 
-      socket.on('player_list_updated', (players) => {
-        const listElement = document.getElementById('player-list');
-        listElement.innerHTML = ''; 
+      if (!socket) {
+        socket = io();
         
-        players.forEach((playerId) => {
-          const listItem = document.createElement('li');
-          listItem.innerText = playerId;
-          
-          if (playerId === myId) {
-            listItem.innerHTML = `<strong>${playerId} (You)</strong>`; 
-          }
-          
-          listElement.appendChild(listItem);
+        socket.on('connect', () => {
+          socket.emit('register_player', myId);
         });
-      });
+
+        socket.on('global_player_list', (playerNames) => {
+          const list = document.getElementById('global-player-list');
+          list.innerHTML = ''; 
+          playerNames.forEach(name => {
+            const li = document.createElement('li');
+            li.innerText = name === myId ? `${name} (You)` : name;
+            list.appendChild(li);
+          });
+        });
+
+        socket.on('game_list_updated', (games) => {
+          updateGameListUI(games);
+        });
+
+        socket.on('room_data_updated', (roomData) => {
+          const listElement = document.getElementById('player-list');
+          listElement.innerHTML = ''; 
+          
+          roomData.players.forEach((playerId) => {
+            const listItem = document.createElement('li');
+            
+            let nameText = playerId;
+            if (playerId === myId) nameText += " (You)";
+            if (playerId === roomData.host) nameText += " (Host)";
+
+            const nameSpan = document.createElement('span');
+            nameSpan.innerHTML = playerId === myId ? `<strong>${nameText}</strong>` : nameText;
+            listItem.appendChild(nameSpan);
+
+            if (myId === roomData.host && playerId !== myId) {
+              const kickBtn = document.createElement('button');
+              kickBtn.innerText = 'Kick';
+              kickBtn.className = 'btn-kick';
+              kickBtn.onclick = () => kickPlayer(playerId);
+              listItem.appendChild(kickBtn);
+            }
+            
+            listElement.appendChild(listItem);
+          });
+
+          const startBtn = document.getElementById('start-game-btn');
+          if (myId === roomData.host) {
+            startBtn.style.display = 'inline-block';
+          } else {
+            startBtn.style.display = 'none';
+          }
+        });
+
+        socket.on('kicked_from_room', () => {
+          alert('Immanuel threw a brick at your head and you died. #RIP');
+          document.getElementById('player-list').innerHTML = ''; 
+          showScreen('rooms-screen');
+        });
+
+      } else {
+        socket.emit('register_player', myId);
+      }
     }
 
     function changeName() {
       const newName = prompt("Enter your new name:", myId);
-      
       if (newName && newName.trim() !== "") {
         myId = newName.trim();
-        
         sessionStorage.setItem('fish_player_id', myId);
-        
-        document.getElementById('status').innerText = 'Connected as: ' + myId;
-        
+        document.getElementById('welcome-message').innerText = `Welcome, ${myId}!`;
         socket.emit('register_player', myId);
       }
+    }
+
+    function createGame() {
+      const roomName = document.getElementById('new-room-input').value;
+      if (roomName.trim() === "") return alert("Enter a room name cuh");
+      
+      document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
+      socket.emit('create_game', roomName);
+      showScreen('game-screen');
+    }
+
+    function joinGame(roomName) {
+      document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
+      socket.emit('join_game', roomName);
+      showScreen('game-screen');
+    }
+
+    function leaveGame() {
+      socket.emit('leave_game');
+      document.getElementById('player-list').innerHTML = ''; 
+      showScreen('rooms-screen');
+    }
+
+    function kickPlayer(playerName) {
+      socket.emit('kick_player', playerName);
+    }
+
+    function startGame() {
+      alert("Game Started");
+    }
+
+    function updateGameListUI(games) {
+      const listContainer = document.getElementById('active-games-list');
+      listContainer.innerHTML = '';
+
+      const gameNames = Object.keys(games);
+      
+      if (gameNames.length === 0) {
+        listContainer.innerHTML = '<p>No active games right now (go touch grass)... #fairs</p>';
+        return;
+      }
+
+      gameNames.forEach(roomName => {
+        const playerCount = games[roomName].players.length;
+        
+        const gameDiv = document.createElement('div');
+        gameDiv.className = 'game-item';
+        
+        gameDiv.innerHTML = `
+          <span>${roomName} (${playerCount} players)</span>
+          <button onclick="joinGame('${roomName}')">Join Game</button>
+        `;
+        
+        listContainer.appendChild(gameDiv);
+      });
     }
   </script>
 </body>
