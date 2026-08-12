@@ -8,7 +8,10 @@ export class Player {
         this.hand.push(card);
     }
     loseCard(card) {
-        this.hand.splice(this.hand.findIndex(c => c[0] === card[0] && c[1] === card[1]), 1);
+        let a = this.hand.findIndex(c => c[0] === card[0] && c[1] === card[1]);
+        if (a != -1) {
+            this.hand.splice(a, 1);
+        }
     }
     hasCard(card) { 
         return this.hand.some(c => c[0] == card[0] && c[1] == card[1]);
