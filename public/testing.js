@@ -19,8 +19,8 @@ let p = new Player(4, "pz");
 let s = new Player(5, "ss");
 players = [h, a, w, f, p, s];
 let turn = 0;
-let g = new Game();
-let cards = g.deal(players);
+let g = new Game(players, turn);
+let cards = g.deal();
 for (const player of players) {
     console.log(`${player.name}: ${JSON.stringify(player.hand)}`);
 }
@@ -46,7 +46,7 @@ for (let a = 0; a <5; a++) {
         continue; 
     }
     else {
-        turn = g.takeTurn(players, turn, valid[choice], target);
+        turn = g.takeTurn(valid[choice], target);
     }
 }
 const suit = Number(await ask("suit to declare? "));
@@ -54,7 +54,7 @@ let holders = [];
 for (let a = 0; a<6; a++) {
     holders.push(Number(await ask("who has next card? ")));
 }
-console.log(g.declareSuit(players, suit, holders));
+console.log(g.declareSuit(suit, holders));
 for (const player of players) {
     console.log(`${player.name}: ${JSON.stringify(player.hand)}`);
 }

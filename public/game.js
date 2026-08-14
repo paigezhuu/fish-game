@@ -1,10 +1,11 @@
 import { Player } from "./player.js";
-
 export class Game {
-    constructor() {
+    constructor(players, turn) {
         this.cards = [];
+        this.players = players;
+        this.turn = turn;
     }
-    deal(players) {
+    deal() {
         for (let a=0; a < 9; a++) {
             for (let b=0; b < 6; b++) {
                 this.cards.push([a, b]);
@@ -15,37 +16,37 @@ export class Game {
         for (let a=0; a<6; a++) {
             for (let b=0; b<9; b++) {
                 let d = Math.floor(Math.random() * c);
-                players[a].addCard(cardsC[d]);
+                this.players[a].addCard(cardsC[d]);
                 cardsC.splice(d, 1);
                 c--;
             }
         }
         return this.cards;
     }
-    takeTurn(players, turn, choice, target) {
+    takeTurn(choice, target) {
     
-        if (players[target].hasCard(choice))
+        if (this.players[target].hasCard(choice))
         {
-            players[target].loseCard(choice);
-            players[turn].addCard(choice);
-            return turn;
+            this.players[target].loseCard(choice);
+            this.players[this.turn].addCard(choice);
         }
         else
         {
-            return target;
+            this.turn = target;
         }
+        return this.turn;
     }
-    declareSuit(players, suit, holders) {
+    declareSuit(suit, holders) {
         let stat = true;
         for (let a = 0; a<6; a++) {
-            if (!(players[holders[a]].hasCard([suit, a])))
+            if (!(this.players[holders[a]].hasCard([suit, a])))
             {
                 stat = false;
             }
         }
         for (let i = 0; i<6; i++) {
             for (let j = 0; j<6; j++) {
-                players[i].loseCard([suit, j]);
+                this.players[i].loseCard([suit, j]);
             }
         }
         return stat;

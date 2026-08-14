@@ -85,6 +85,14 @@
     </div>
   </div>
 
+  <div id="gameplay-screen" class="screen">
+    <div class="layout-container">
+      <div class="main-column">
+        <button id="ask-btn" class="btn-ask" onclick="askCard()">tienes?</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let myId = sessionStorage.getItem('fish_player_id');
     let socket; 
@@ -267,7 +275,12 @@
     }
 
     function startGame() {
-      alert("Game Started! (watson will finish)");
+      showScreen('gameplay-screen');
+      socket.emit('start_game');
+    }
+
+    function askCard() {
+      alert("something probably maybe worked");
     }
 
     function handleTyping(context) {
