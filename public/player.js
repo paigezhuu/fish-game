@@ -1,4 +1,4 @@
-export class Player {
+class Player {
     constructor(id, name) {
         this.id = id;
         this.name = name;
@@ -30,3 +30,5 @@ export class Player {
         return false;
     }
 }
+
+module.exports = { Player };

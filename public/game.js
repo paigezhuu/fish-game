@@ -1,5 +1,6 @@
-import { Player } from "./player.js";
-export class Game {
+const { Player } = require("./player.js");
+
+class Game {
     constructor(players, turn) {
         this.cards = [];
         this.players = players;
@@ -52,3 +53,5 @@ export class Game {
         return stat;
     }
 }
+
+module.exports = { Game };

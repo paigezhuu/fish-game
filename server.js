@@ -2,6 +2,9 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
+const { Player } = require('./public/player.js');
+const { Game } = require('./public/game.js');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -76,6 +79,35 @@ io.on('connection', (socket) => {
           socket.emit('error_message', 'That team is already full!');
         }
       }
+    }
+  });
+
+  socket.on('start_game', () => {
+    if (!players[socket.id]) return;
+    
+    const roomName = players[socket.id].room;
+    const playerName = players[socket.id].name;
+    
+    if (roomName && games[roomName]) {
+      
+      if (games[roomName].host !== playerName) {
+        socket.emit('error_message', 'Only the group leader can start the game!');
+        return;
+      }
+
+      if (games[roomName].players.length !== 6) {
+        socket.emit('error_message', 'You must have exactly 6 players to start!');
+        return;
+      }
+
+      const gamePlayers = games[roomName].players.map((p, index) => new Player(index, p.name));
+      
+      const newGame = new Game(gamePlayers, 0);
+      games[roomName].instance = newGame;
+      
+      newGame.deal();
+
+      io.to(roomName).emit('game_officially_started');
     }
   });
 

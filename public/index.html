@@ -226,6 +226,10 @@
           document.getElementById(indicatorId).innerText = text;
         });
 
+        socket.on('game_officially_started', () => {
+          showScreen('gameplay-screen');
+        });
+
       } else {
         socket.emit('register_player', myId);
       }
@@ -275,7 +279,6 @@
     }
 
     function startGame() {
-      showScreen('gameplay-screen');
       socket.emit('start_game');
     }
 
