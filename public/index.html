@@ -88,6 +88,9 @@
   <div id="gameplay-screen" class="screen">
     <div class="layout-container">
       <div class="main-column">
+        <h2>Hand</h2>
+        <div id="my-hand" class="hand-container"></div>
+        
         <button id="ask-btn" class="btn-ask" onclick="askCard()">tienes?</button>
       </div>
     </div>
@@ -226,8 +229,20 @@
           document.getElementById(indicatorId).innerText = text;
         });
 
-        socket.on('game_officially_started', () => {
+        socket.on('game_started', () => {
           showScreen('gameplay-screen');
+        });
+
+        socket.on('receive_hand', (hand) => {
+          const handContainer = document.getElementById('my-hand');
+          handContainer.innerHTML = '';
+          
+          hand.forEach(card => {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'playing-card';
+            cardDiv.innerText = `Suit ${card[0]} \n Rank ${card[1]}`;
+            handContainer.appendChild(cardDiv);
+          });
         });
 
       } else {

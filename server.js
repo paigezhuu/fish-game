@@ -107,7 +107,16 @@ io.on('connection', (socket) => {
       
       newGame.deal();
 
-      io.to(roomName).emit('game_officially_started');
+      io.to(roomName).emit('game_started');
+
+      games[roomName].players.forEach((p, index) => {
+        const targetSocketId = Object.keys(players).find(id => players[id].name === p.name);
+        
+        if (targetSocketId) {
+          const myHand = newGame.players[index].hand;
+          io.to(targetSocketId).emit('receive_hand', myHand);
+        }
+      });
     }
   });
 
