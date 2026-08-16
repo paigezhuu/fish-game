@@ -29,7 +29,7 @@ io.on('connection', (socket) => {
     players[socket.id].room = roomName;
     
     if (!games[roomName]) {
-      games[roomName] = { host: playerName, players: [] };
+      games[roomName] = { host: playerName, players: [], status: 'waiting' };
     }
     games[roomName].players.push({ name: playerName, team: 1 });
     
@@ -104,10 +104,12 @@ io.on('connection', (socket) => {
       
       const newGame = new Game(gamePlayers, 0);
       games[roomName].instance = newGame;
+      games[roomName].status = 'playing';
       
       newGame.deal();
 
       io.to(roomName).emit('game_started');
+      io.to(roomName).emit('room_data_updated', games[roomName]);
 
       games[roomName].players.forEach((p, index) => {
         const targetSocketId = Object.keys(players).find(id => players[id].name === p.name);
@@ -126,7 +128,7 @@ io.on('connection', (socket) => {
     const roomName = players[socket.id].room;
     const playerName = players[socket.id].name;
 
-    if (roomName && games[roomName] && games[roomName].host === playerName) {
+    if (roomName && games[roomName] && games[roomName].host === playerName && games[roomName].status === 'waiting') {
       const targetSocketId = Object.keys(players).find(id => players[id].name === targetName);
 
       if (targetSocketId) {

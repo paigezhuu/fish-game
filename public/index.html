@@ -55,11 +55,19 @@
     <div class="layout-container">
       <div class="main-column">
         <h1 id="current-room-title">FISH Room</h1>
-        <p>Waiting for players... (Max 6)</p>
         
-        <button id="start-game-btn" class="btn-start" onclick="startGame()" style="display: none;">Start Game</button>
-        <button class="btn-info" onclick="switchTeam()">Switch Team</button>
-        <button class="btn-secondary" onclick="leaveGame()" style="margin-top: 15px;">Leave Game</button>
+        <div id="pre-game-area">
+          <p>Waiting for players... (Max 6)</p>
+          <button id="start-game-btn" class="btn-start" onclick="startGame()" style="display: none;">Start Game</button>
+          <button class="btn-info" onclick="switchTeam()">Switch Team</button>
+          <button class="btn-secondary" onclick="leaveGame()" style="margin-top: 15px;">Leave Game</button>
+        </div>
+
+        <div id="active-game-area" style="display: none;">
+          <h2>Your Hand</h2>
+          <div id="my-hand" class="hand-container"></div>
+          <button id="ask-btn" class="btn-ask" onclick="askCard()">tienes?</button>
+        </div>
       </div>
       
       <div class="sidebar-column">
@@ -81,17 +89,6 @@
               <button type="submit">Send</button>
           </form>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="gameplay-screen" class="screen">
-    <div class="layout-container">
-      <div class="main-column">
-        <h2>Hand</h2>
-        <div id="my-hand" class="hand-container"></div>
-        
-        <button id="ask-btn" class="btn-ask" onclick="askCard()">tienes?</button>
       </div>
     </div>
   </div>
@@ -168,7 +165,7 @@
             nameSpan.innerHTML = playerId === myId ? `<strong>${nameText}</strong>` : nameText;
             listItem.appendChild(nameSpan);
 
-            if (myId === roomData.host && playerId !== myId) {
+            if (myId === roomData.host && playerId !== myId && roomData.status === 'waiting') {
               const kickBtn = document.createElement('button');
               kickBtn.innerText = 'Kick';
               kickBtn.className = 'btn-kick';
@@ -230,7 +227,8 @@
         });
 
         socket.on('game_started', () => {
-          showScreen('gameplay-screen');
+          document.getElementById('pre-game-area').style.display = 'none';
+          document.getElementById('active-game-area').style.display = 'block';
         });
 
         socket.on('receive_hand', (hand) => {
@@ -266,6 +264,9 @@
       
       document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
       document.getElementById('room-chat-box').innerHTML = '';
+      document.getElementById('pre-game-area').style.display = 'block';
+      document.getElementById('active-game-area').style.display = 'none';
+
       socket.emit('create_game', roomName);
       showScreen('game-screen');
     }
@@ -273,6 +274,9 @@
     function joinGame(roomName) {
       document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
       document.getElementById('room-chat-box').innerHTML = '';
+      document.getElementById('pre-game-area').style.display = 'block';
+      document.getElementById('active-game-area').style.display = 'none';
+
       socket.emit('join_game', roomName);
       showScreen('game-screen');
     }
