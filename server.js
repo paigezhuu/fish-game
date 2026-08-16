@@ -122,10 +122,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('card_asked', (choice, targetName) => {
+  socket.on('card_asked', (choice, target) => {
     if (!players[socket.id]) return;
+
     const roomName = players[socket.id].room;
     if (!roomName || !games[roomName]) return;
+
     const game = games[roomName].instance;
     if (!game) return;
 
@@ -133,14 +135,20 @@ io.on('connection', (socket) => {
         p => p.name === players[socket.id].name
     );
 
-    const targetIndex = game.players.findIndex(
-        p => p.name === targetName
-    );
-
-    if (playerIndex === -1 || targetIndex === -1) return;
+    if (playerIndex === -1) return;
 
     if (game.turn !== playerIndex) {
         socket.emit('error_message', "It's not your turn!");
+        return;
+    }
+
+    if (target < 0 || target >= game.players.length) {
+        socket.emit('error_message', "Invalid target!");
+        return;
+    }
+
+    if (target === playerIndex) {
+        socket.emit('error_message', "You can't ask yourself!");
         return;
     }
 
@@ -149,22 +157,16 @@ io.on('connection', (socket) => {
         return;
     }
 
-    game.takeTurn(choice, targetIndex);
+    game.takeTurn(choice, target);
 
-    socket.emit(
-        'receive_hand',
-        game.players[playerIndex].hand
-    );
+    socket.emit('receive_hand', game.players[playerIndex].hand);
 
     const targetSocketId = Object.keys(players).find(
-        id => players[id].name === targetName
+        id => players[id].name === game.players[target].name
     );
 
     if (targetSocketId) {
-        io.to(targetSocketId).emit(
-            'receive_hand',
-            game.players[targetIndex].hand
-        );
+        io.to(targetSocketId).emit('receive_hand', game.players[target].hand);
     }
 
     //io.to(roomName).emit('turn_changed', game.turn);

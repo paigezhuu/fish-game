@@ -66,10 +66,26 @@
         <div id="active-game-area" style="display: none;">
           <h2>Your Hand</h2>
           <div id="my-hand" class="hand-container"></div>
-          <form class="chat-form" onsubmit="askCard([0,0], 'target')">
-              <input oninput="handleTyping('target')" />
-              <button type="submit">Send</button>
-          </form>
+        
+          <h2>Ask for a card</h2>
+
+          <label for="ask-card">Card:</label>
+          <select id="ask-card">
+              <option value="">Choose a card</option>
+          </select>
+
+          <br><br>
+
+          <label for="target-player">Player:</label>
+          <select id="target-player">
+              <option value="">Choose a player</option>
+          </select>
+
+          <br><br>
+
+          <button id="ask-btn" class="btn-ask" onclick="submitAsk()">
+              Ask for card
+          </button>
         </div>
       </div>
       
@@ -182,9 +198,21 @@
               team2List.appendChild(listItem);
             }
           });
-
+          
+          const targetSelect = document.getElementById('target-player');
+          targetSelect.innerHTML = '<option value="">Choose a player</option>';
+          const myPlayer = roomData.players.find(player => player.name === myId);
+          targetSelect.innerHTML = '<option value="">Choose a player</option>';
+          roomData.players.forEach((playerObj, index) => {
+              if (playerObj.team !== myPlayer.team) {
+                  const option = document.createElement('option');
+                  option.value = index;
+                  option.textContent = playerObj.name;
+                  targetSelect.appendChild(option);
+              }
+          });
           const startBtn = document.getElementById('start-game-btn');
-          if (myId === roomData.host) {
+          if (myId === roomData.host && roomData.status === 'waiting') {
             startBtn.style.display = 'inline-block';
           } else {
             startBtn.style.display = 'none';
@@ -244,6 +272,27 @@
             cardDiv.innerText = `Suit ${card[0]} \n Rank ${card[1]}`;
             handContainer.appendChild(cardDiv);
           });
+          const askSelect = document.getElementById('ask-card');
+          askSelect.innerHTML = '<option value="">Choose a card</option>';
+
+          for (let suit = 0; suit < 9; suit++) {
+              for (let rank = 0; rank < 6; rank++) {
+                  const hasCard = hand.some(
+                      card => card[0] === suit && card[1] === rank
+                  );
+
+                  if (!hasCard) {
+                      const option = document.createElement('option');
+
+                      const card = [suit, rank];
+
+                      option.value = JSON.stringify(card);
+                      option.textContent = `Suit ${suit}, Rank ${rank}`;
+
+                      askSelect.appendChild(option);
+                  }
+              }
+          }
         });
 
       } else {
@@ -302,6 +351,29 @@
 
     function startGame() {
       socket.emit('start_game');
+    }
+
+    function submitAsk() {
+        const cardValue = document.getElementById('ask-card').value;
+        const targetValue = document.getElementById('target-player').value;
+
+        if (cardValue === "") {
+            alert("Choose a card!");
+            return;
+        }
+
+        if (targetValue === "") {
+            alert("Choose a player!");
+            return;
+        }
+
+        const card = JSON.parse(cardValue);
+        const target = Number(targetValue);
+
+        console.log("Asking for:", card);
+        console.log("Asking player:", target);
+
+        askCard(card, target);
     }
 
     function askCard(choice, target) {
