@@ -66,7 +66,10 @@
         <div id="active-game-area" style="display: none;">
           <h2>Your Hand</h2>
           <div id="my-hand" class="hand-container"></div>
-          <button id="ask-btn" class="btn-ask" onclick="askCard()">tienes?</button>
+          <form class="chat-form" onsubmit="askCard([0,0], 'target')">
+              <input oninput="handleTyping('target')" />
+              <button type="submit">Send</button>
+          </form>
         </div>
       </div>
       
@@ -301,8 +304,8 @@
       socket.emit('start_game');
     }
 
-    function askCard() {
-      alert("something probably maybe worked");
+    function askCard(choice, target) {
+      socket.emit('card_asked', choice, target);
     }
 
     function handleTyping(context) {

@@ -122,6 +122,54 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('card_asked', (choice, targetName) => {
+    if (!players[socket.id]) return;
+    const roomName = players[socket.id].room;
+    if (!roomName || !games[roomName]) return;
+    const game = games[roomName].instance;
+    if (!game) return;
+
+    const playerIndex = game.players.findIndex(
+        p => p.name === players[socket.id].name
+    );
+
+    const targetIndex = game.players.findIndex(
+        p => p.name === targetName
+    );
+
+    if (playerIndex === -1 || targetIndex === -1) return;
+
+    if (game.turn !== playerIndex) {
+        socket.emit('error_message', "It's not your turn!");
+        return;
+    }
+
+    if (!game.players[playerIndex].legalAsk(choice)) {
+        socket.emit('error_message', "That is not a legal ask!");
+        return;
+    }
+
+    game.takeTurn(choice, targetIndex);
+
+    socket.emit(
+        'receive_hand',
+        game.players[playerIndex].hand
+    );
+
+    const targetSocketId = Object.keys(players).find(
+        id => players[id].name === targetName
+    );
+
+    if (targetSocketId) {
+        io.to(targetSocketId).emit(
+            'receive_hand',
+            game.players[targetIndex].hand
+        );
+    }
+
+    //io.to(roomName).emit('turn_changed', game.turn);
+});
+
   socket.on('kick_player', (targetName) => {
     if (!players[socket.id]) return;
     
