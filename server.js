@@ -14,6 +14,29 @@ app.use(express.static('public'));
 let players = {};
 let games = {};
 
+function getRoomData(room) {
+  const game = room.instance;
+
+  return {
+    host: room.host,
+    status: room.status,
+
+    players: room.players.map(roomPlayer => {
+      const gamePlayer = game?.players.find(
+        p => p.name === roomPlayer.name
+      );
+
+      return {
+        name: roomPlayer.name,
+        team: roomPlayer.team,
+        cardCount: gamePlayer ? gamePlayer.hand.length : 0
+      };
+    }),
+
+    askHistory: game?.askHistory || []
+  };
+}
+
 io.on('connection', (socket) => {
   
   socket.on('register_player', (playerName) => {
@@ -169,8 +192,38 @@ io.on('connection', (socket) => {
         io.to(targetSocketId).emit('receive_hand', game.players[target].hand);
     }
 
-    //io.to(roomName).emit('turn_changed', game.turn);
-});
+    io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
+  });
+
+  socket.on('declare_suit', (suit, holders) => {
+    const roomName = players[socket.id].room;
+    const game = games[roomName].instance;
+    const successful = game.declareSuit(suit, holders);
+    if (successful) {
+        io.to(roomName).emit(
+            'error_message',
+            `${players[socket.id].name} correctly declared Suit ${suit}!`
+        );
+    } else {
+        io.to(roomName).emit(
+            'error_message',
+            `${players[socket.id].name} incorrectly declared Suit ${suit}!`
+        );
+    }
+    io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
+    games[roomName].players.forEach((p, index) => {
+        const targetSocketId = Object.keys(players).find(
+            id => players[id].name === p.name
+        );
+
+        if (targetSocketId) {
+            io.to(targetSocketId).emit(
+                'receive_hand',
+                game.players[index].hand
+            );
+        }
+    });
+  });
 
   socket.on('kick_player', (targetName) => {
     if (!players[socket.id]) return;

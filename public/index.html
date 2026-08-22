@@ -86,7 +86,29 @@
           <button id="ask-btn" class="btn-ask" onclick="submitAsk()">
               Ask for card
           </button>
-        </div>
+
+          <hr>
+
+          <h2>Declare a Suit</h2>
+
+          <label for="declare-suit">Suit:</label>
+          <select id="declare-suit" onchange="buildSuitDeclaration()">
+            <option value="">Choose a suit</option>
+            <option value="0">Suit 0</option>
+            <option value="1">Suit 1</option>
+            <option value="2">Suit 2</option>
+            <option value="3">Suit 3</option>
+            <option value="4">Suit 4</option>
+            <option value="5">Suit 5</option>
+            <option value="6">Suit 6</option>
+            <option value="7">Suit 7</option>
+            <option value="8">Suit 8</option>
+          </select>
+          <br>
+          <div id="suit-declaration-inputs"></div>
+
+          <button class="btn-info" onclick="submitSuitDeclaration()">Declare Suit</button>
+          </div>
       </div>
       
       <div class="sidebar-column">
@@ -98,7 +120,13 @@
           <h3>Team 2</h3>
           <ul id="team-2-list" class="player-list-style"></ul>
         </div>
-
+        <div id="game-status-box" class="sidebar-box" style="display: none;">
+          <h2>Game Status</h2>
+          <div id = "player-status-list"></div>
+          <hr>
+          <h3>last two</h3>
+          <div id="last-asks-list"></div>
+        </div>
         <div class="sidebar-box">
           <h3>Room Chat</h3>
           <div class="chat-box" id="room-chat-box"></div>
@@ -115,6 +143,7 @@
   <script>
     let myId = sessionStorage.getItem('fish_player_id');
     let socket; 
+    let currentRoomData = null;
     
     let typingUsersLobby = [];
     let typingUsersRoom = [];
@@ -166,11 +195,17 @@
         });
 
         socket.on('room_data_updated', (roomData) => {
+          currentRoomData = roomData;
+
           const team1List = document.getElementById('team-1-list');
           const team2List = document.getElementById('team-2-list');
-          
+          const statusList = document.getElementById('player-status-list');
+          const asksList = document.getElementById('last-asks-list');
+
           team1List.innerHTML = ''; 
           team2List.innerHTML = '';
+          statusList.innerHTML = '';
+          asksList.innerHTML = '';
           
           roomData.players.forEach((playerObj) => {
             const playerId = playerObj.name;
@@ -198,6 +233,53 @@
               team2List.appendChild(listItem);
             }
           });
+
+          roomData.players.forEach((playerObj) => {
+              const playerDiv = document.createElement('div');
+              playerDiv.className = 'player-status';
+
+              const name = playerObj.name === myId
+              ? `${playerObj.name} (You)`
+              : playerObj.name;
+
+              playerDiv.innerHTML = `
+                <div class="player-status-header">
+                <strong>${name}</strong>
+                <span class="card-count">${playerObj.cardCount ?? 9} cards</span>
+                </div>
+              `;
+
+              statusList.appendChild(playerDiv);
+          });
+          const lastTwoAsks = (roomData.askHistory || []).slice(-2).reverse();
+
+          if (lastTwoAsks.length === 0) {
+              asksList.innerHTML = `
+                <div class="muted">No asks yet</div>
+              `;
+          } else {
+              lastTwoAsks.forEach((ask) => {
+                  const askDiv = document.createElement('div');
+                  askDiv.className = 'ask-entry';
+                  const correctColor = ask.successful ? 'green' : 'red' ;
+                  askDiv.innerHTML = `
+                  <div>
+                    <strong>${ask.asker}</strong>
+                    <span>
+                    → 
+                    </span>
+                    <strong> ${ask.target}</strong>
+                  </div>
+                  <div>
+                    <span style="color: ${correctColor}; font-weight: bold; font-size: 20px;">
+                      Suit ${ask.card[0]}, Rank ${ask.card[1]}
+                    </span>
+                  </div>
+                  `;
+
+                  asksList.appendChild(askDiv);
+              });
+          }
           
           const targetSelect = document.getElementById('target-player');
           targetSelect.innerHTML = '<option value="">Choose a player</option>';
@@ -260,6 +342,7 @@
         socket.on('game_started', () => {
           document.getElementById('pre-game-area').style.display = 'none';
           document.getElementById('active-game-area').style.display = 'block';
+          document.getElementById('game-status-box').style.display = 'block';
         });
 
         socket.on('receive_hand', (hand) => {
@@ -282,6 +365,7 @@
                   );
 
                   if (!hasCard) {
+                    if(hand.some(card => card[0] == suit)) {
                       const option = document.createElement('option');
 
                       const card = [suit, rank];
@@ -290,6 +374,7 @@
                       option.textContent = `Suit ${suit}, Rank ${rank}`;
 
                       askSelect.appendChild(option);
+                    }
                   }
               }
           }
@@ -328,7 +413,7 @@
       document.getElementById('room-chat-box').innerHTML = '';
       document.getElementById('pre-game-area').style.display = 'block';
       document.getElementById('active-game-area').style.display = 'none';
-
+      document.getElementById('game-status-box').style.display = 'none';
       socket.emit('join_game', roomName);
       showScreen('game-screen');
     }
@@ -379,7 +464,70 @@
     function askCard(choice, target) {
       socket.emit('card_asked', choice, target);
     }
+    function buildSuitDeclaration() {
+        const suitValue = document.getElementById('declare-suit').value;
+        const container = document.getElementById('suit-declaration-inputs');
 
+        container.innerHTML = '';
+
+        if (suitValue === '') return;
+        const me = currentRoomData.players.find(player => player.name === myId);
+        if (!me) return;  
+        const teammates = currentRoomData.players.filter(player => player.team === me.team);
+        for (let rank = 0; rank < 6; rank++) {
+            const row = document.createElement('div');
+
+            const label = document.createElement('label');
+            label.innerText = `Rank ${rank}: `;
+
+            const select = document.createElement('select');
+            select.id = `declare-rank-${rank}`;
+
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Choose player';
+            select.appendChild(defaultOption);
+
+            teammates.forEach(player => {
+              const option = document.createElement('option');
+              const playerIndex = currentRoomData.players.findIndex(p => p.name === player.name);
+              option.value = playerIndex;
+              option.textContent = player.name;
+              select.appendChild(option);
+            });
+
+
+
+            row.appendChild(label);
+            row.appendChild(select);
+            container.appendChild(row);
+        }
+    }
+
+    function submitSuitDeclaration() {
+        const suitValue = document.getElementById('declare-suit').value;
+
+        if (suitValue === '') {
+            alert('Choose a suit!');
+            return;
+        }
+
+        const suit = Number(suitValue);
+        const holders = [];
+
+        for (let rank = 0; rank < 6; rank++) {
+            const value = document.getElementById(`declare-rank-${rank}`).value;
+
+            if (value === '') {
+                alert(`Choose a player for Rank ${rank}!`);
+                return;
+            }
+
+            holders.push(Number(value));
+        }
+
+        socket.emit('declare_suit', suit, holders);
+    }
     function handleTyping(context) {
       socket.emit('typing', { context: context, isTyping: true });
       clearTimeout(typingTimeout);

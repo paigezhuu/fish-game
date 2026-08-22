@@ -5,6 +5,7 @@ class Game {
         this.cards = [];
         this.players = players;
         this.turn = turn;
+        this.askHistory = [];
     }
     deal() {
         for (let a=0; a < 9; a++) {
@@ -25,7 +26,7 @@ class Game {
         return this.cards;
     }
     takeTurn(choice, target) {
-    
+        let asker = this.players[this.turn].name;
         if (this.players[target].hasCard(choice))
         {
             this.players[target].loseCard(choice);
@@ -35,6 +36,7 @@ class Game {
         {
             this.turn = target;
         }
+        this.askHistory.push({asker: asker, target: this.players[target].name, card: [choice[0], choice[1]], successful: !(this.turn == target) });
         return this.turn;
     }
     declareSuit(suit, holders) {
