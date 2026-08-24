@@ -20,6 +20,7 @@ function getRoomData(room) {
   return {
     host: room.host,
     status: room.status,
+    score: room.score,
 
     players: room.players.map(roomPlayer => {
       const gamePlayer = game?.players.find(
@@ -52,7 +53,7 @@ io.on('connection', (socket) => {
     players[socket.id].room = roomName;
     
     if (!games[roomName]) {
-      games[roomName] = { host: playerName, players: [], status: 'waiting' };
+      games[roomName] = { host: playerName, players: [], status: 'waiting', score: { 1: 0, 2: 0 } };
     }
     games[roomName].players.push({ name: playerName, team: 1 });
     
@@ -199,17 +200,25 @@ io.on('connection', (socket) => {
     const roomName = players[socket.id].room;
     const game = games[roomName].instance;
     const successful = game.declareSuit(suit, holders);
+    
+    const suitNames = [
+        'Low Spades', 'High Spades', 'Low Hearts', 'High Hearts',
+        'Low Clubs', 'High Clubs', 'Low Diamonds', 'High Diamonds', '8s and Jokers'
+    ];
+    const actualSuitName = suitNames[suit];
+
+    const declaringPlayer = games[roomName].players.find(p => p.name === players[socket.id].name);
+    const declaringTeam = declaringPlayer.team;
+    const opposingTeam = declaringTeam === 1 ? 2 : 1;
+
     if (successful) {
-        io.to(roomName).emit(
-            'error_message',
-            `${players[socket.id].name} correctly declared Suit ${suit}!`
-        );
+        games[roomName].score[declaringTeam] += 1;
+        io.to(roomName).emit('error_message', `${players[socket.id].name} correctly declared ${actualSuitName}! Team ${declaringTeam} gets a point!`);
     } else {
-        io.to(roomName).emit(
-            'error_message',
-            `${players[socket.id].name} incorrectly declared Suit ${suit}!`
-        );
+        games[roomName].score[opposingTeam] += 1;
+        io.to(roomName).emit('error_message', `${players[socket.id].name} incorrectly declared ${actualSuitName}! Team ${opposingTeam} gets a point!`);
     }
+
     io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
     games[roomName].players.forEach((p, index) => {
         const targetSocketId = Object.keys(players).find(

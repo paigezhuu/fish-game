@@ -92,22 +92,23 @@
           <h2>Declare a Suit</h2>
 
           <label for="declare-suit">Suit:</label>
+          <label for="declare-suit">Suit:</label>
           <select id="declare-suit" onchange="buildSuitDeclaration()">
             <option value="">Choose a suit</option>
-            <option value="0">Suit 0</option>
-            <option value="1">Suit 1</option>
-            <option value="2">Suit 2</option>
-            <option value="3">Suit 3</option>
-            <option value="4">Suit 4</option>
-            <option value="5">Suit 5</option>
-            <option value="6">Suit 6</option>
-            <option value="7">Suit 7</option>
-            <option value="8">Suit 8</option>
+            <option value="0">Low Spades (2-7)</option>
+            <option value="1">High Spades (9-A)</option>
+            <option value="2">Low Hearts (2-7)</option>
+            <option value="3">High Hearts (9-A)</option>
+            <option value="4">Low Clubs (2-7)</option>
+            <option value="5">High Clubs (9-A)</option>
+            <option value="6">Low Diamonds (2-7)</option>
+            <option value="7">High Diamonds (9-A)</option>
+            <option value="8">8s and Jokers</option>
           </select>
-          <br>
+          <br><br>
           <div id="suit-declaration-inputs"></div>
 
-          <button class="btn-info" onclick="submitSuitDeclaration()">Declare Suit</button>
+          <button class="ask-btn" onclick="submitSuitDeclaration()">Declare Suit</button>
           </div>
       </div>
       
@@ -122,9 +123,14 @@
         </div>
         <div id="game-status-box" class="sidebar-box" style="display: none;">
           <h2>Game Status</h2>
+          <div style="background: #e2ebf5; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;">
+            <strong>Score</strong><br>
+            Team 1: <span id="score-team-1">0</span> | Team 2: <span id="score-team-2">0</span>
+          </div>
+          
           <div id = "player-status-list"></div>
           <hr>
-          <h3>last two</h3>
+          <h3>Last Two Asks</h3>
           <div id="last-asks-list"></div>
         </div>
         <div class="sidebar-box">
@@ -262,6 +268,9 @@
                   const askDiv = document.createElement('div');
                   askDiv.className = 'ask-entry';
                   const correctColor = ask.successful ? 'green' : 'red' ;
+                  
+                  const cardName = getCardDisplayName(ask.card[0], ask.card[1]);
+                  
                   askDiv.innerHTML = `
                   <div>
                     <strong>${ask.asker}</strong>
@@ -271,8 +280,8 @@
                     <strong> ${ask.target}</strong>
                   </div>
                   <div>
-                    <span style="color: ${correctColor}; font-weight: bold; font-size: 20px;">
-                      Suit ${ask.card[0]}, Rank ${ask.card[1]}
+                    <span style="color: ${correctColor}; font-weight: bold; font-size: 16px;">
+                      ${cardName}
                     </span>
                   </div>
                   `;
@@ -350,11 +359,20 @@
           handContainer.innerHTML = '';
           
           hand.forEach(card => {
+            const suitIndex = card[0];
+            const rankIndex = card[1];
+            
+            const fileName = getCardImageName(suitIndex, rankIndex);
+            const displayName = getCardDisplayName(suitIndex, rankIndex);
+            
             const cardDiv = document.createElement('div');
             cardDiv.className = 'playing-card';
-            cardDiv.innerText = `Suit ${card[0]} \n Rank ${card[1]}`;
+            
+            cardDiv.innerHTML = `<img src="/images/${fileName}" alt="${displayName}" title="${displayName}">`;
+            
             handContainer.appendChild(cardDiv);
           });
+
           const askSelect = document.getElementById('ask-card');
           askSelect.innerHTML = '<option value="">Choose a card</option>';
 
@@ -371,8 +389,7 @@
                       const card = [suit, rank];
 
                       option.value = JSON.stringify(card);
-                      option.textContent = `Suit ${suit}, Rank ${rank}`;
-
+                      option.textContent = getCardDisplayName(suit, rank);
                       askSelect.appendChild(option);
                     }
                   }
@@ -471,14 +488,21 @@
         container.innerHTML = '';
 
         if (suitValue === '') return;
+        
+        const suitIndex = Number(suitValue);
+
         const me = currentRoomData.players.find(player => player.name === myId);
         if (!me) return;  
         const teammates = currentRoomData.players.filter(player => player.team === me.team);
+        
         for (let rank = 0; rank < 6; rank++) {
             const row = document.createElement('div');
+            row.style.marginBottom = "5px"; 
 
             const label = document.createElement('label');
-            label.innerText = `Rank ${rank}: `;
+            label.innerText = getCardDisplayName(suitIndex, rank) + ': ';
+            label.style.display = "inline-block";
+            label.style.width = "140px";
 
             const select = document.createElement('select');
             select.id = `declare-rank-${rank}`;
@@ -495,8 +519,6 @@
               option.textContent = player.name;
               select.appendChild(option);
             });
-
-
 
             row.appendChild(label);
             row.appendChild(select);
@@ -578,6 +600,36 @@
         
         listContainer.appendChild(gameDiv);
       });
+    }
+
+    function getCardImageName(suit, rank) {
+      const cardMap = [
+        ['card_spades_02', 'card_spades_03', 'card_spades_04', 'card_spades_05', 'card_spades_06', 'card_spades_07'],
+        ['card_spades_09', 'card_spades_10', 'card_spades_J', 'card_spades_Q', 'card_spades_K', 'card_spades_A'],
+        ['card_hearts_02', 'card_hearts_03', 'card_hearts_04', 'card_hearts_05', 'card_hearts_06', 'card_hearts_07'],
+        ['card_hearts_09', 'card_hearts_10', 'card_hearts_J', 'card_hearts_Q', 'card_hearts_K', 'card_hearts_A'],
+        ['card_clubs_02', 'card_clubs_03', 'card_clubs_04', 'card_clubs_05', 'card_clubs_06', 'card_clubs_07'],
+        ['card_clubs_09', 'card_clubs_10', 'card_clubs_J', 'card_clubs_Q', 'card_clubs_K', 'card_clubs_A'],
+        ['card_diamonds_02', 'card_diamonds_03', 'card_diamonds_04', 'card_diamonds_05', 'card_diamonds_06', 'card_diamonds_07'],
+        ['card_diamonds_09', 'card_diamonds_10', 'card_diamonds_J', 'card_diamonds_Q', 'card_diamonds_K', 'card_diamonds_A'],
+        ['card_spades_08', 'card_hearts_08', 'card_clubs_08', 'card_diamonds_08', 'card_joker_black', 'card_joker_red']
+      ];
+      return cardMap[suit][rank] + '.png'; 
+    }
+
+    function getCardDisplayName(suit, rank) {
+      const nameMap = [
+        ['2 of Spades', '3 of Spades', '4 of Spades', '5 of Spades', '6 of Spades', '7 of Spades'],
+        ['9 of Spades', '10 of Spades', 'Jack of Spades', 'Queen of Spades', 'King of Spades', 'Ace of Spades'],
+        ['2 of Hearts', '3 of Hearts', '4 of Hearts', '5 of Hearts', '6 of Hearts', '7 of Hearts'],
+        ['9 of Hearts', '10 of Hearts', 'Jack of Hearts', 'Queen of Hearts', 'King of Hearts', 'Ace of Hearts'],
+        ['2 of Clubs', '3 of Clubs', '4 of Clubs', '5 of Clubs', '6 of Clubs', '7 of Clubs'],
+        ['9 of Clubs', '10 of Clubs', 'Jack of Clubs', 'Queen of Clubs', 'King of Clubs', 'Ace of Clubs'],
+        ['2 of Diamonds', '3 of Diamonds', '4 of Diamonds', '5 of Diamonds', '6 of Diamonds', '7 of Diamonds'],
+        ['9 of Diamonds', '10 of Diamonds', 'Jack of Diamonds', 'Queen of Diamonds', 'King of Diamonds', 'Ace of Diamonds'],
+        ['8 of Spades', '8 of Hearts', '8 of Clubs', '8 of Diamonds', 'Black Joker', 'Red Joker']
+      ];
+      return nameMap[suit][rank];
     }
   </script>
 </body>
