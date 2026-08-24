@@ -20,7 +20,8 @@ function getRoomData(room) {
   return {
     host: room.host,
     status: room.status,
-    score: room.score,
+    score: room.score || { 1: 0, 2: 0 },
+    declaredSuits: room.declaredSuits || [],
 
     players: room.players.map(roomPlayer => {
       const gamePlayer = game?.players.find(
@@ -111,6 +112,9 @@ io.on('connection', (socket) => {
     
     const roomName = players[socket.id].room;
     const playerName = players[socket.id].name;
+
+    games[roomName].score = { 1: 0, 2: 0 };
+    games[roomName].declaredSuits = [];
     
     if (roomName && games[roomName]) {
       
@@ -202,14 +206,17 @@ io.on('connection', (socket) => {
     const successful = game.declareSuit(suit, holders);
     
     const suitNames = [
-        'Low Spades', 'High Spades', 'Low Hearts', 'High Hearts',
-        'Low Clubs', 'High Clubs', 'Low Diamonds', 'High Diamonds', '8s and Jokers'
+        'Minor Spades', 'Major Spades', 'Minor Hearts', 'Major Hearts',
+        'Minor Clubs', 'Major Clubs', 'Minor Diamonds', 'Major Diamonds', 'the 8s and Jokers'
     ];
     const actualSuitName = suitNames[suit];
 
     const declaringPlayer = games[roomName].players.find(p => p.name === players[socket.id].name);
     const declaringTeam = declaringPlayer.team;
     const opposingTeam = declaringTeam === 1 ? 2 : 1;
+
+    if (!games[roomName].score) games[roomName].score = { 1: 0, 2: 0 };
+    if (!games[roomName].declaredSuits) games[roomName].declaredSuits = [];
 
     if (successful) {
         games[roomName].score[declaringTeam] += 1;
@@ -219,17 +226,30 @@ io.on('connection', (socket) => {
         io.to(roomName).emit('error_message', `${players[socket.id].name} incorrectly declared ${actualSuitName}! Team ${opposingTeam} gets a point!`);
     }
 
+    if (!games[roomName].declaredSuits.includes(suit)) {
+        games[roomName].declaredSuits.push(suit);
+    }
+
+    if (games[roomName].score[1] + games[roomName].score[2] === 9) {
+        let winnerName = "It's a tie!";
+        if (games[roomName].score[1] > games[roomName].score[2]) winnerName = "Team 1 Wins!";
+        if (games[roomName].score[2] > games[roomName].score[1]) winnerName = "Team 2 Wins!";
+
+        io.to(roomName).emit('game_over', {
+            winner: winnerName,
+            score: games[roomName].score
+        });
+
+        games[roomName].status = 'waiting';
+        games[roomName].score = { 1: 0, 2: 0 };
+        games[roomName].declaredSuits = [];
+    }
+
     io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
     games[roomName].players.forEach((p, index) => {
-        const targetSocketId = Object.keys(players).find(
-            id => players[id].name === p.name
-        );
-
+        const targetSocketId = Object.keys(players).find(id => players[id].name === p.name);
         if (targetSocketId) {
-            io.to(targetSocketId).emit(
-                'receive_hand',
-                game.players[index].hand
-            );
+            io.to(targetSocketId).emit('receive_hand', game.players[index].hand);
         }
     });
   });
@@ -265,6 +285,8 @@ io.on('connection', (socket) => {
       const playerName = players[socket.id].name;
       
       if (roomName && games[roomName]) {
+        const wasPlaying = games[roomName].status === 'playing';
+        
         games[roomName].players = games[roomName].players.filter(p => p.name !== playerName);
         socket.leave(roomName);
         players[socket.id].room = null; 
@@ -272,10 +294,21 @@ io.on('connection', (socket) => {
         if (games[roomName].players.length === 0) {
           delete games[roomName];
         } else {
+          if (wasPlaying) {
+            games[roomName].status = 'waiting';
+            games[roomName].score = { 1: 0, 2: 0 };
+            games[roomName].declaredSuits = [];
+            
+            io.to(roomName).emit('game_over', {
+                winner: `Game Cancelled!\n${playerName} left.`,
+                score: games[roomName].score
+            });
+          }
+          
           if (games[roomName].host === playerName) {
             games[roomName].host = games[roomName].players[0].name; 
           }
-          io.to(roomName).emit('room_data_updated', games[roomName]);
+          io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
         }
         io.emit('game_list_updated', games);
       }
@@ -288,15 +321,28 @@ io.on('connection', (socket) => {
       const playerName = players[socket.id].name;
       
       if (roomName && games[roomName]) {
+        const wasPlaying = games[roomName].status === 'playing';
+        
         games[roomName].players = games[roomName].players.filter(p => p.name !== playerName);
         
         if (games[roomName].players.length === 0) {
           delete games[roomName];
         } else {
+          if (wasPlaying) {
+            games[roomName].status = 'waiting';
+            games[roomName].score = { 1: 0, 2: 0 };
+            games[roomName].declaredSuits = [];
+            
+            io.to(roomName).emit('game_over', {
+                winner: `Game Cancelled!\n${playerName} disconnected.`,
+                score: games[roomName].score
+            });
+          }
+          
           if (games[roomName].host === playerName) {
             games[roomName].host = games[roomName].players[0].name;
           }
-          io.to(roomName).emit('room_data_updated', games[roomName]);
+          io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
         }
         io.emit('game_list_updated', games);
       }

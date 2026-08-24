@@ -92,7 +92,6 @@
           <h2>Declare a Suit</h2>
 
           <label for="declare-suit">Suit:</label>
-          <label for="declare-suit">Suit:</label>
           <select id="declare-suit" onchange="buildSuitDeclaration()">
             <option value="">Choose a suit</option>
             <option value="0">Low Spades (2-7)</option>
@@ -143,6 +142,17 @@
           </form>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="game-over-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <h1 id="modal-winner-text">Team Wins!</h1>
+      <hr>
+      <h2>Final Score</h2>
+      <p>Team 1: <span id="modal-score-1">0</span></p>
+      <p>Team 2: <span id="modal-score-2">0</span></p>
+      <button class="btn-info" onclick="closeGameOverModal()">Back to Lobby</button>
     </div>
   </div>
 
@@ -202,6 +212,30 @@
 
         socket.on('room_data_updated', (roomData) => {
           currentRoomData = roomData;
+
+          if (roomData.score) {
+            document.getElementById('score-team-1').innerText = roomData.score['1'];
+            document.getElementById('score-team-2').innerText = roomData.score['2'];
+          }
+
+          if (roomData.declaredSuits) {
+            const declareSelect = document.getElementById('declare-suit');
+            Array.from(declareSelect.options).forEach(option => {
+              if (option.value === "") return;
+              
+              const suitVal = Number(option.value);
+              
+              if (roomData.declaredSuits.includes(suitVal)) {
+                option.disabled = true;
+                if (!option.textContent.includes('(Declared)')) {
+                  option.textContent += ' (Declared)';
+                }
+              } else {
+                option.disabled = false;
+                option.textContent = option.textContent.replace(' (Declared)', '');
+              }
+            });
+          }
 
           const team1List = document.getElementById('team-1-list');
           const team2List = document.getElementById('team-2-list');
@@ -395,6 +429,19 @@
                   }
               }
           }
+        });
+
+        socket.on('game_over', (data) => {
+          document.getElementById('modal-winner-text').innerText = data.winner;
+          document.getElementById('modal-score-1').innerText = data.score['1'];
+          document.getElementById('modal-score-2').innerText = data.score['2'];
+          
+          document.getElementById('game-over-modal').style.display = 'flex';
+          
+          document.getElementById('pre-game-area').style.display = 'block';
+          document.getElementById('active-game-area').style.display = 'none';
+          document.getElementById('game-status-box').style.display = 'none';
+          document.getElementById('my-hand').innerHTML = '';
         });
 
       } else {
@@ -630,6 +677,10 @@
         ['8 of Spades', '8 of Hearts', '8 of Clubs', '8 of Diamonds', 'Black Joker', 'Red Joker']
       ];
       return nameMap[suit][rank];
+    }
+
+    function closeGameOverModal() {
+      document.getElementById('game-over-modal').style.display = 'none';
     }
   </script>
 </body>
