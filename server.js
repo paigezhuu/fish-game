@@ -68,7 +68,7 @@ io.on('connection', (socket) => {
     if (!players[socket.id] || !games[roomName]) return;
     
     if (games[roomName].players.length >= 6) {
-      socket.emit('error_message', 'that team is already full... they dont want u :(');
+      socket.emit('error_message', 'bro they dont want you... the game is already full');
       return;
     }
 
@@ -101,7 +101,7 @@ io.on('connection', (socket) => {
           playerObj.team = targetTeam;
           io.to(roomName).emit('room_data_updated', games[roomName]);
         } else {
-          socket.emit('error_message', 'That team is already full!');
+          socket.emit('error_message', 'bro they dont want you... that team is already full');
         }
       }
     }
@@ -117,14 +117,9 @@ io.on('connection', (socket) => {
     games[roomName].declaredSuits = [];
     
     if (roomName && games[roomName]) {
-      
-      if (games[roomName].host !== playerName) {
-        socket.emit('error_message', 'Only the group leader can start the game!');
-        return;
-      }
 
       if (games[roomName].players.length !== 6) {
-        socket.emit('error_message', 'You must have exactly 6 players to start!');
+        socket.emit('error_message', 'you dont have enough friends (yikes)... you need 6 players to start');
         return;
       }
 
@@ -166,22 +161,12 @@ io.on('connection', (socket) => {
     if (playerIndex === -1) return;
 
     if (game.turn !== playerIndex) {
-        socket.emit('error_message', "It's not your turn!");
-        return;
-    }
-
-    if (target < 0 || target >= game.players.length) {
-        socket.emit('error_message', "Invalid target!");
-        return;
-    }
-
-    if (target === playerIndex) {
-        socket.emit('error_message', "You can't ask yourself!");
+        socket.emit('error_message', "chill it's not ur turn bud");
         return;
     }
 
     if (!game.players[playerIndex].legalAsk(choice)) {
-        socket.emit('error_message', "That is not a legal ask!");
+        socket.emit('error_message', "illegal ask");
         return;
     }
 
@@ -220,10 +205,10 @@ io.on('connection', (socket) => {
 
     if (successful) {
         games[roomName].score[declaringTeam] += 1;
-        io.to(roomName).emit('error_message', `${players[socket.id].name} correctly declared ${actualSuitName}! Team ${declaringTeam} gets a point!`);
+        io.to(roomName).emit('error_message', `${players[socket.id].name} correctly declared ${actualSuitName} (not bad for a kid?). Team ${declaringTeam} gets a point ;)`);
     } else {
         games[roomName].score[opposingTeam] += 1;
-        io.to(roomName).emit('error_message', `${players[socket.id].name} incorrectly declared ${actualSuitName}! Team ${opposingTeam} gets a point!`);
+        io.to(roomName).emit('error_message', `BOOM. ${players[socket.id].name} incorrectly declared ${actualSuitName} (yikes). Team ${opposingTeam} gets a point ;)`);
     }
 
     if (!games[roomName].declaredSuits.includes(suit)) {
@@ -231,7 +216,7 @@ io.on('connection', (socket) => {
     }
 
     if (games[roomName].score[1] + games[roomName].score[2] === 9) {
-        let winnerName = "It's a tie!";
+        let winnerName = "TIE GAME...? (idk how this is even possible ngl)";
         if (games[roomName].score[1] > games[roomName].score[2]) winnerName = "Team 1 Wins!";
         if (games[roomName].score[2] > games[roomName].score[1]) winnerName = "Team 2 Wins!";
 
@@ -334,7 +319,7 @@ io.on('connection', (socket) => {
             games[roomName].declaredSuits = [];
             
             io.to(roomName).emit('game_over', {
-                winner: `Game Cancelled!\n${playerName} disconnected.`,
+                winner: `game cancelled....\n${playerName} was a chud and disconnected :(`,
                 score: games[roomName].score
             });
           }
