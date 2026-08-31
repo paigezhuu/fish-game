@@ -108,6 +108,14 @@
           <div id="suit-declaration-inputs"></div>
 
           <button class="ask-btn" onclick="submitSuitDeclaration()">Declare Suit</button>
+          
+          <div id="pass-turn-area" style="display: none;">
+            <label for="pass-target">Pass to:</label>
+            <select id="pass-target">
+              <option value="">Choose teammate</option>
+            </select>
+            <button id="pass-turn-info" class="btn-info" onclick="passTurn()">Pass Turn</button>
+          </div>
           </div>
       </div>
       
@@ -336,6 +344,32 @@
                   targetSelect.appendChild(option);
               }
           });
+          const passArea = document.getElementById('pass-turn-area');
+          const passSelect = document.getElementById('pass-target');
+          const myIndex = roomData.players.findIndex(player => player.name === myId);
+          const me = roomData.players[myIndex];
+          passSelect.innerHTML = '<option value="">Choose teammate</option>';
+
+          if (me && me.cardCount === 0 && roomData.turn === myIndex) {
+            roomData.players.forEach((player, index) => {
+                if (
+                    player.team === me.team &&
+                    player.name !== myId
+                ) {
+                    const option = document.createElement('option');
+
+                    option.value = index;
+                    option.textContent = player.name;
+
+                    passSelect.appendChild(option);
+                }
+            });
+
+            passArea.style.display = 'block';
+          } else {
+            passArea.style.display = 'none';
+          }
+
           const startBtn = document.getElementById('start-game-btn');
           if (myId === roomData.host && roomData.status === 'waiting') {
             startBtn.style.display = 'inline-block';
@@ -597,6 +631,18 @@
 
         socket.emit('declare_suit', suit, holders);
     }
+
+    function passTurn() {
+      const passTarget = document.getElementById('pass-target').value;
+
+      if (passTarget === '') { 
+        alert('Choose a teammate to pass to!'); 
+        return;
+      }
+
+      socket.emit('pass_turn', Number(passTarget));
+    }
+
     function handleTyping(context) {
       socket.emit('typing', { context: context, isTyping: true });
       clearTimeout(typingTimeout);

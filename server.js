@@ -20,6 +20,7 @@ function getRoomData(room) {
   return {
     host: room.host,
     status: room.status,
+    turn: game ? game.turn : null,
     score: room.score || { 1: 0, 2: 0 },
     declaredSuits: room.declaredSuits || [],
 
@@ -61,7 +62,7 @@ io.on('connection', (socket) => {
     socket.join(roomName);
     
     io.emit('game_list_updated', games);
-    io.to(roomName).emit('room_data_updated', games[roomName]);
+    io.to(roomName).emit('room_data_updated', getRoomData(games[roomName]));
   });
 
   socket.on('join_game', (roomName) => {
@@ -238,6 +239,34 @@ io.on('connection', (socket) => {
         }
     });
   });
+  
+  socket.on('pass_turn', (target) => {
+    if (!players[socket.id]) return;
+
+    const roomName = players[socket.id].room;
+    const room = games[roomName];
+    const game = room.instance;
+    const playerIndex = game.players.findIndex(p => p.name === players[socket.id].name); 
+
+    if (game.turn !== playerIndex) {
+      socket.emit('error_message', "you cant pass the turn if its not your turn");
+      return;
+    }
+
+    if (game.players[playerIndex].hand.length !== 0) {
+      socket.emit('error_message', "nice try, get rid of your cards first");
+      return;
+    }
+    
+    const current = room.players[playerIndex];
+    const next = room.players[target];
+
+    game.turn = target;
+
+    io.to(roomName).emit('error_message', `${current.name} passed the turn to ${next.name}.`);
+    io.to(roomName).emit('room_data_updated', getRoomData(room));
+
+  })
 
   socket.on('kick_player', (targetName) => {
     if (!players[socket.id]) return;

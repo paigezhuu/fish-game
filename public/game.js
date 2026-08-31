@@ -54,6 +54,13 @@ class Game {
         }
         return stat;
     }
+    passTurn(target) {
+        if (this.players[this.turn].hand.length !== 0) {
+            return false;
+        }
+        this.turn = target;
+        return true;
+    }
 }
 
 module.exports = { Game };
