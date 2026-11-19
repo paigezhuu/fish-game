@@ -2,732 +2,242 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fih</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3a2c">
+  <title>Fish</title>
   <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+  <noscript>Fish needs JavaScript to run.</noscript>
 
-  <div id="login-screen" class="screen">
-    <h2>FISH Multiplayer</h2>
-    <input type="text" id="username-input" placeholder="enter yo name" />
-    <br><br>
-    <button onclick="login()">Connect</button>
+  <div id="conn-banner" class="conn-banner" hidden>
+    <span class="spinner"></span> Connection lost. Reconnecting&hellip; your seat is being held.
   </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
-  <div id="rooms-screen" class="screen">
-    <div class="layout-container">
-      <div class="main-column">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h2 id="welcome-message">Welcome!</h2>
-          <button class="btn-secondary" onclick="changeName()">Change Name</button>
-        </div>
-        <hr>
-        <h3>Create a New Game</h3>
-        <input type="text" id="new-room-input" placeholder="e.g. Ms. Dih-claires vs. Ida Claire" />
-        <button onclick="createGame()">Create Game</button>
-        <hr>
-        <h3>Available Games</h3>
-        <div id="active-games-list">
-        </div>
+  <!-- Loading -->
+  <section id="screen-loading" class="screen screen-center">
+    <div class="loading"><span class="spinner big"></span><p class="muted">Getting you back to the table&hellip;</p></div>
+  </section>
+
+  <!-- Login -->
+  <section id="screen-login" class="screen screen-center" hidden>
+    <form id="login-form" class="panel login-card" autocomplete="off">
+      <div class="logo" aria-hidden="true"><span>&spades;</span><span class="red">&hearts;</span><span>&clubs;</span><span class="red">&diams;</span></div>
+      <h1>Fish</h1>
+      <p class="muted">Six players, two teams, one very tense game of memory and bluffing.</p>
+      <input id="username-input" type="text" maxlength="20" placeholder="enter yo name" aria-label="Your name">
+      <button class="btn btn-primary btn-block" type="submit">Play</button>
+      <p id="login-error" class="form-error" hidden></p>
+      <button type="button" class="link-btn" data-open="modal-rules">How to play</button>
+    </form>
+  </section>
+
+  <!-- Lobby -->
+  <section id="screen-lobby" class="screen" hidden>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">&spades;</span> Fish</div>
+      <div class="topbar-center"><span class="muted">Signed in as</span> <strong id="welcome-name"></strong></div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" data-open="modal-rules">How to play</button>
+        <button class="btn btn-ghost btn-sm" id="rename-btn">Change name</button>
       </div>
-      
-      <div class="sidebar-column">
-        <div class="sidebar-box">
-          <h2>Players Online</h2>
-          <ul id="global-player-list" class="player-list-style"></ul>
+    </header>
+
+    <div class="layout">
+      <main class="stack">
+        <form id="create-form" class="panel" autocomplete="off">
+          <div class="panel-head"><h2>Create a game</h2></div>
+          <div class="input-row">
+            <input id="new-room-input" type="text" maxlength="30" placeholder="e.g. Ms. Dih-claires vs. Ida Claire" aria-label="Room name">
+            <button class="btn btn-primary" type="submit">Create</button>
+          </div>
+        </form>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Available games</h2></div>
+          <div id="active-games-list" class="stack-sm"></div>
         </div>
-        
-        <div class="sidebar-box">
-          <h3>Lobby Chat</h3>
+      </main>
+
+      <aside class="stack">
+        <div class="panel">
+          <div class="panel-head"><h3>Players online</h3><span id="online-count" class="pill"></span></div>
+          <ul id="global-player-list" class="plain-list"></ul>
+        </div>
+        <div class="panel chat">
+          <div class="panel-head"><h3>Lobby chat</h3></div>
           <div class="chat-box" id="lobby-chat-box"></div>
           <div id="lobby-typing-indicator" class="typing-indicator"></div>
-          <form class="chat-form" onsubmit="sendChat(event, 'lobby')">
-              <input id="lobby-chat-input" autocomplete="off" placeholder="yapathon.." oninput="handleTyping('lobby')" />
-              <button type="submit">Send</button>
+          <form class="chat-form" data-context="lobby" autocomplete="off">
+            <input id="lobby-chat-input" maxlength="300" placeholder="yapathon.." aria-label="Lobby chat message">
+            <button class="btn btn-primary btn-sm" type="submit">Send</button>
           </form>
         </div>
-      </div>
+      </aside>
     </div>
-  </div>
+  </section>
 
-  <div id="game-screen" class="screen">
-    <div class="layout-container">
-      <div class="main-column">
-        <h1 id="current-room-title">FISH Room</h1>
-        
-        <div id="pre-game-area">
-          <p>Waiting for players... (Max 6)</p>
-          <button id="start-game-btn" class="btn-start" onclick="startGame()" style="display: none;">Start Game</button>
-          <button class="btn-info" onclick="switchTeam()">Switch Team</button>
-          <button class="btn-secondary" onclick="leaveGame()" style="margin-top: 15px;">Leave Game</button>
-        </div>
-
-        <div id="active-game-area" style="display: none;">
-          <h2>Your Hand</h2>
-          <div id="my-hand" class="hand-container"></div>
-        
-          <h2>Ask for a card</h2>
-
-          <label for="ask-card">Card:</label>
-          <select id="ask-card">
-              <option value="">Choose a card</option>
-          </select>
-
-          <br><br>
-
-          <label for="target-player">Player:</label>
-          <select id="target-player">
-              <option value="">Choose a player</option>
-          </select>
-
-          <br><br>
-
-          <button id="ask-btn" class="btn-ask" onclick="submitAsk()">
-              Ask for card
-          </button>
-
-          <hr>
-
-          <h2>Declare a Suit</h2>
-
-          <label for="declare-suit">Suit:</label>
-          <select id="declare-suit" onchange="buildSuitDeclaration()">
-            <option value="">Choose a suit</option>
-            <option value="0">Low Spades (2-7)</option>
-            <option value="1">High Spades (9-A)</option>
-            <option value="2">Low Hearts (2-7)</option>
-            <option value="3">High Hearts (9-A)</option>
-            <option value="4">Low Clubs (2-7)</option>
-            <option value="5">High Clubs (9-A)</option>
-            <option value="6">Low Diamonds (2-7)</option>
-            <option value="7">High Diamonds (9-A)</option>
-            <option value="8">8s and Jokers</option>
-          </select>
-          <br><br>
-          <div id="suit-declaration-inputs"></div>
-
-          <button class="ask-btn" onclick="submitSuitDeclaration()">Declare Suit</button>
-          
-          <div id="pass-turn-area" style="display: none;">
-            <label for="pass-target">Pass to:</label>
-            <select id="pass-target">
-              <option value="">Choose teammate</option>
-            </select>
-            <button id="pass-turn-info" class="btn-info" onclick="passTurn()">Pass Turn</button>
-          </div>
-          </div>
+  <!-- Room -->
+  <section id="screen-room" class="screen" hidden>
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">Room</span>
+        <h1 id="room-title" class="room-title"></h1>
       </div>
-      
-      <div class="sidebar-column">
-        <div class="sidebar-box">
-          <h2>Teams</h2>
-          <h3>Team 1</h3>
-          <ul id="team-1-list" class="player-list-style"></ul>
-          
-          <h3>Team 2</h3>
-          <ul id="team-2-list" class="player-list-style"></ul>
-        </div>
-        <div id="game-status-box" class="sidebar-box" style="display: none;">
-          <h2>Game Status</h2>
-          <div style="background: #e2ebf5; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;">
-            <strong>Score</strong><br>
-            Team 1: <span id="score-team-1">0</span> | Team 2: <span id="score-team-2">0</span>
+      <div id="scoreboard" class="scoreboard" hidden>
+        <div class="score" data-team="1"><span>Team 1</span><b id="score-1">0</b></div>
+        <div class="score-sep">&ndash;</div>
+        <div class="score" data-team="2"><b id="score-2">0</b><span>Team 2</span></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" data-open="modal-rules">How to play</button>
+        <button class="btn btn-danger btn-sm" id="leave-btn">Leave</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <main class="stack">
+        <!-- Before the game -->
+        <div id="lobby-area" class="panel">
+          <div class="panel-head"><h2>Waiting for players</h2><span id="seat-count" class="pill"></span></div>
+          <p class="muted">Friends can find this room in the lobby. You need three players on each team.</p>
+          <div class="team-columns">
+            <div class="team-col" data-team="1"><h3>Team 1</h3><div id="team-1-slots" class="stack-sm"></div></div>
+            <div class="team-col" data-team="2"><h3>Team 2</h3><div id="team-2-slots" class="stack-sm"></div></div>
           </div>
-          
-          <div id = "player-status-list"></div>
-          <hr>
-          <h3>Last Two Asks</h3>
-          <div id="last-asks-list"></div>
+          <div class="actions">
+            <button id="switch-team-btn" class="btn btn-ghost">Switch team</button>
+            <button id="start-game-btn" class="btn btn-primary" hidden>Start game</button>
+          </div>
+          <p id="start-hint" class="muted"></p>
         </div>
-        <div class="sidebar-box">
-          <h3>Room Chat</h3>
+
+        <!-- During the game -->
+        <div id="table-area" class="stack" hidden>
+          <div id="turn-banner" class="turn-banner"></div>
+
+          <div class="panel table-felt">
+            <div class="team-row" data-team="1"><span class="team-label">Team 1</span><div id="seats-1" class="seats"></div></div>
+            <div class="team-row" data-team="2"><span class="team-label">Team 2</span><div id="seats-2" class="seats"></div></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Your hand</h2><span id="hand-count" class="pill"></span></div>
+            <div id="my-hand" class="hand"></div>
+          </div>
+
+          <div class="panel" id="ask-panel">
+            <div class="panel-head">
+              <h2>Ask for a card</h2>
+              <button id="declare-open-btn" class="btn btn-gold btn-sm">Declare a half-suit</button>
+            </div>
+            <div class="ask-grid">
+              <div>
+                <h4 class="step">1 &middot; Who are you asking?</h4>
+                <div id="ask-targets" class="chips"></div>
+              </div>
+              <div>
+                <h4 class="step">2 &middot; Which card?</h4>
+                <div id="ask-cards" class="stack-sm"></div>
+              </div>
+            </div>
+            <div class="ask-footer">
+              <p id="ask-summary" class="ask-summary"></p>
+              <button id="ask-btn" class="btn btn-primary" disabled>Ask</button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="stack">
+        <div id="halfsuit-panel" class="panel" hidden>
+          <div class="panel-head"><h3>Half-suits</h3></div>
+          <div id="halfsuit-grid" class="halfsuit-grid"></div>
+        </div>
+        <div id="activity-panel" class="panel" hidden>
+          <div class="panel-head"><h3>Activity</h3></div>
+          <div id="activity-log" class="log"></div>
+        </div>
+        <div class="panel chat">
+          <div class="panel-head"><h3>Room chat</h3></div>
           <div class="chat-box" id="room-chat-box"></div>
           <div id="room-typing-indicator" class="typing-indicator"></div>
-          <form class="chat-form" onsubmit="sendChat(event, 'room')">
-              <input id="room-chat-input" autocomplete="off" placeholder="yap..." oninput="handleTyping('room')" />
-              <button type="submit">Send</button>
+          <form class="chat-form" data-context="room" autocomplete="off">
+            <input id="room-chat-input" maxlength="300" placeholder="yap..." aria-label="Room chat message">
+            <button class="btn btn-primary btn-sm" type="submit">Send</button>
           </form>
         </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Declare -->
+  <div id="modal-declare" class="modal" hidden>
+    <div class="modal-card wide" role="dialog" aria-modal="true" aria-labelledby="declare-title">
+      <h2 id="declare-title">Declare a half-suit</h2>
+      <p class="muted">Pick a half-suit, then say which teammate is holding each card. Get it right and your team scores. Get it wrong and the other team does. Either way those cards leave the game.</p>
+      <div id="declare-suits" class="suit-picker"></div>
+      <div id="declare-rows" class="declare-rows"></div>
+      <div class="modal-actions">
+        <button id="declare-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="declare-submit" class="btn btn-gold" disabled>Declare</button>
       </div>
     </div>
   </div>
 
-  <div id="game-over-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <h1 id="modal-winner-text">Team Wins!</h1>
-      <hr>
-      <h2>Final Score</h2>
-      <p>Team 1: <span id="modal-score-1">0</span></p>
-      <p>Team 2: <span id="modal-score-2">0</span></p>
-      <button class="btn-info" onclick="closeGameOverModal()">Back to Lobby</button>
+  <!-- Game over -->
+  <div id="modal-gameover" class="modal" hidden>
+    <div class="modal-card center" role="dialog" aria-modal="true">
+      <p class="eyebrow" id="gameover-eyebrow">Game over</p>
+      <h1 id="gameover-title">Team wins!</h1>
+      <div class="final-score">
+        <div data-team="1"><span>Team 1</span><b id="final-1">0</b></div>
+        <div data-team="2"><span>Team 2</span><b id="final-2">0</b></div>
+      </div>
+      <button id="gameover-close" class="btn btn-primary">Back to the room</button>
     </div>
   </div>
 
-  <script>
-    let myId = sessionStorage.getItem('fish_player_id');
-    let socket; 
-    let currentRoomData = null;
-    
-    let typingUsersLobby = [];
-    let typingUsersRoom = [];
-    let typingTimeout;
-
-    if (myId) {
-      document.getElementById('username-input').value = myId;
-      login();
-    }
-
-    function showScreen(screenId) {
-      document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
-      document.getElementById(screenId).style.display = 'block';
-    }
-
-    function login() {
-      const typedName = document.getElementById('username-input').value;
-      if (typedName.trim() === "") return alert("enter yo name");
-
-      myId = typedName.trim();
-      sessionStorage.setItem('fish_player_id', myId);
-      
-      document.getElementById('welcome-message').innerText = `Welcome, ${myId}!`;
-      showScreen('rooms-screen');
-
-      if (!socket) {
-        socket = io();
-        
-        socket.on('connect', () => {
-          socket.emit('register_player', myId);
-        });
-
-        socket.on('error_message', (msg) => {
-          alert(msg);
-        });
-
-        socket.on('global_player_list', (playerNames) => {
-          const list = document.getElementById('global-player-list');
-          list.innerHTML = ''; 
-          playerNames.forEach(name => {
-            const li = document.createElement('li');
-            li.innerText = name === myId ? `${name} (You)` : name;
-            list.appendChild(li);
-          });
-        });
-
-        socket.on('game_list_updated', (games) => {
-          updateGameListUI(games);
-        });
-
-        socket.on('room_data_updated', (roomData) => {
-          currentRoomData = roomData;
-
-          if (roomData.score) {
-            document.getElementById('score-team-1').innerText = roomData.score['1'];
-            document.getElementById('score-team-2').innerText = roomData.score['2'];
-          }
-
-          if (roomData.declaredSuits) {
-            const declareSelect = document.getElementById('declare-suit');
-            Array.from(declareSelect.options).forEach(option => {
-              if (option.value === "") return;
-              
-              const suitVal = Number(option.value);
-              
-              if (roomData.declaredSuits.includes(suitVal)) {
-                option.disabled = true;
-                if (!option.textContent.includes('(Declared)')) {
-                  option.textContent += ' (Declared)';
-                }
-              } else {
-                option.disabled = false;
-                option.textContent = option.textContent.replace(' (Declared)', '');
-              }
-            });
-          }
-
-          const team1List = document.getElementById('team-1-list');
-          const team2List = document.getElementById('team-2-list');
-          const statusList = document.getElementById('player-status-list');
-          const asksList = document.getElementById('last-asks-list');
-
-          team1List.innerHTML = ''; 
-          team2List.innerHTML = '';
-          statusList.innerHTML = '';
-          asksList.innerHTML = '';
-          
-          roomData.players.forEach((playerObj) => {
-            const playerId = playerObj.name;
-            const listItem = document.createElement('li');
-            
-            let nameText = playerId;
-            if (playerId === myId) nameText += " (You)";
-            if (playerId === roomData.host) nameText += " (Group Leader)"; 
-
-            const nameSpan = document.createElement('span');
-            nameSpan.innerHTML = playerId === myId ? `<strong>${nameText}</strong>` : nameText;
-            listItem.appendChild(nameSpan);
-
-            if (myId === roomData.host && playerId !== myId && roomData.status === 'waiting') {
-              const kickBtn = document.createElement('button');
-              kickBtn.innerText = 'Kick';
-              kickBtn.className = 'btn-kick';
-              kickBtn.onclick = () => kickPlayer(playerId);
-              listItem.appendChild(kickBtn);
-            }
-            
-            if (playerObj.team === 1) {
-              team1List.appendChild(listItem);
-            } else {
-              team2List.appendChild(listItem);
-            }
-          });
-
-          roomData.players.forEach((playerObj) => {
-              const playerDiv = document.createElement('div');
-              playerDiv.className = 'player-status';
-
-              const name = playerObj.name === myId
-              ? `${playerObj.name} (You)`
-              : playerObj.name;
-
-              playerDiv.innerHTML = `
-                <div class="player-status-header">
-                <strong>${name}</strong>
-                <span class="card-count">${playerObj.cardCount ?? 9} cards</span>
-                </div>
-              `;
-
-              statusList.appendChild(playerDiv);
-          });
-          const lastTwoAsks = (roomData.askHistory || []).slice(-2).reverse();
-
-          if (lastTwoAsks.length === 0) {
-              asksList.innerHTML = `
-                <div class="muted">No asks yet</div>
-              `;
-          } else {
-              lastTwoAsks.forEach((ask) => {
-                  const askDiv = document.createElement('div');
-                  askDiv.className = 'ask-entry';
-                  const correctColor = ask.successful ? 'green' : 'red' ;
-                  
-                  const cardName = getCardDisplayName(ask.card[0], ask.card[1]);
-                  
-                  askDiv.innerHTML = `
-                  <div>
-                    <strong>${ask.asker}</strong>
-                    <span>
-                    → 
-                    </span>
-                    <strong> ${ask.target}</strong>
-                  </div>
-                  <div>
-                    <span style="color: ${correctColor}; font-weight: bold; font-size: 16px;">
-                      ${cardName}
-                    </span>
-                  </div>
-                  `;
-
-                  asksList.appendChild(askDiv);
-              });
-          }
-          
-          const targetSelect = document.getElementById('target-player');
-          targetSelect.innerHTML = '<option value="">Choose a player</option>';
-          const myPlayer = roomData.players.find(player => player.name === myId);
-          targetSelect.innerHTML = '<option value="">Choose a player</option>';
-          roomData.players.forEach((playerObj, index) => {
-              if (playerObj.team !== myPlayer.team) {
-                  const option = document.createElement('option');
-                  option.value = index;
-                  option.textContent = playerObj.name;
-                  targetSelect.appendChild(option);
-              }
-          });
-          const passArea = document.getElementById('pass-turn-area');
-          const passSelect = document.getElementById('pass-target');
-          const myIndex = roomData.players.findIndex(player => player.name === myId);
-          const me = roomData.players[myIndex];
-          passSelect.innerHTML = '<option value="">Choose teammate</option>';
-
-          if (me && me.cardCount === 0 && roomData.turn === myIndex) {
-            roomData.players.forEach((player, index) => {
-                if (
-                    player.team === me.team &&
-                    player.name !== myId
-                ) {
-                    const option = document.createElement('option');
-
-                    option.value = index;
-                    option.textContent = player.name;
-
-                    passSelect.appendChild(option);
-                }
-            });
-
-            passArea.style.display = 'block';
-          } else {
-            passArea.style.display = 'none';
-          }
-
-          const startBtn = document.getElementById('start-game-btn');
-          if (myId === roomData.host && roomData.status === 'waiting') {
-            startBtn.style.display = 'inline-block';
-          } else {
-            startBtn.style.display = 'none';
-          }
-        });
-
-        socket.on('kicked_from_room', () => {
-          alert('Immanuel threw a brick at your head and you died. #RIP');
-          document.getElementById('team-1-list').innerHTML = ''; 
-          document.getElementById('team-2-list').innerHTML = '';
-          document.getElementById('room-chat-box').innerHTML = ''; 
-          showScreen('rooms-screen');
-        });
-
-        socket.on('global_chat_message', (data) => {
-          const box = document.getElementById('lobby-chat-box');
-          box.innerHTML += `<div class="chat-message"><strong>${data.sender}:</strong> ${data.text}</div>`;
-          box.scrollTop = box.scrollHeight;
-        });
-
-        socket.on('room_chat_message', (data) => {
-          const box = document.getElementById('room-chat-box');
-          box.innerHTML += `<div class="chat-message"><strong>${data.sender}:</strong> ${data.text}</div>`;
-          box.scrollTop = box.scrollHeight;
-        });
-
-        socket.on('user_typing', (data) => {
-          let targetArray = data.context === 'lobby' ? typingUsersLobby : typingUsersRoom;
-          let indicatorId = data.context === 'lobby' ? 'lobby-typing-indicator' : 'room-typing-indicator';
-
-          if (data.isTyping && !targetArray.includes(data.name)) {
-            targetArray.push(data.name);
-          } else if (!data.isTyping) {
-            const index = targetArray.indexOf(data.name);
-            if (index > -1) targetArray.splice(index, 1);
-          }
-
-          let text = '';
-          if (targetArray.length === 1) text = `${targetArray[0]} is typing...`;
-          else if (targetArray.length > 1) text = 'Several people are typing...';
-
-          document.getElementById(indicatorId).innerText = text;
-        });
-
-        socket.on('game_started', () => {
-          document.getElementById('pre-game-area').style.display = 'none';
-          document.getElementById('active-game-area').style.display = 'block';
-          document.getElementById('game-status-box').style.display = 'block';
-        });
-
-        socket.on('receive_hand', (hand) => {
-          const handContainer = document.getElementById('my-hand');
-          handContainer.innerHTML = '';
-          
-          hand.forEach(card => {
-            const suitIndex = card[0];
-            const rankIndex = card[1];
-            
-            const fileName = getCardImageName(suitIndex, rankIndex);
-            const displayName = getCardDisplayName(suitIndex, rankIndex);
-            
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'playing-card';
-            
-            cardDiv.innerHTML = `<img src="/images/${fileName}" alt="${displayName}" title="${displayName}">`;
-            
-            handContainer.appendChild(cardDiv);
-          });
-
-          const askSelect = document.getElementById('ask-card');
-          askSelect.innerHTML = '<option value="">Choose a card</option>';
-
-          for (let suit = 0; suit < 9; suit++) {
-              for (let rank = 0; rank < 6; rank++) {
-                  const hasCard = hand.some(
-                      card => card[0] === suit && card[1] === rank
-                  );
-
-                  if (!hasCard) {
-                    if(hand.some(card => card[0] == suit)) {
-                      const option = document.createElement('option');
-
-                      const card = [suit, rank];
-
-                      option.value = JSON.stringify(card);
-                      option.textContent = getCardDisplayName(suit, rank);
-                      askSelect.appendChild(option);
-                    }
-                  }
-              }
-          }
-        });
-
-        socket.on('game_over', (data) => {
-          document.getElementById('modal-winner-text').innerText = data.winner;
-          document.getElementById('modal-score-1').innerText = data.score['1'];
-          document.getElementById('modal-score-2').innerText = data.score['2'];
-          
-          document.getElementById('game-over-modal').style.display = 'flex';
-          
-          document.getElementById('pre-game-area').style.display = 'block';
-          document.getElementById('active-game-area').style.display = 'none';
-          document.getElementById('game-status-box').style.display = 'none';
-          document.getElementById('my-hand').innerHTML = '';
-        });
-
-      } else {
-        socket.emit('register_player', myId);
-      }
-    }
-
-    function changeName() {
-      const newName = prompt("wow so indecisive... enter ur new name:", myId);
-      if (newName && newName.trim() !== "") {
-        myId = newName.trim();
-        sessionStorage.setItem('fish_player_id', myId);
-        document.getElementById('welcome-message').innerText = `Welcome, ${myId}!`;
-        socket.emit('register_player', myId);
-      }
-    }
-
-    function createGame() {
-      const roomName = document.getElementById('new-room-input').value;
-      if (roomName.trim() === "") return alert("Enter a room name cuh");
-      
-      document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
-      document.getElementById('room-chat-box').innerHTML = '';
-      document.getElementById('pre-game-area').style.display = 'block';
-      document.getElementById('active-game-area').style.display = 'none';
-
-      socket.emit('create_game', roomName);
-      showScreen('game-screen');
-    }
-
-    function joinGame(roomName) {
-      document.getElementById('current-room-title').innerText = `Room: ${roomName}`;
-      document.getElementById('room-chat-box').innerHTML = '';
-      document.getElementById('pre-game-area').style.display = 'block';
-      document.getElementById('active-game-area').style.display = 'none';
-      document.getElementById('game-status-box').style.display = 'none';
-      socket.emit('join_game', roomName);
-      showScreen('game-screen');
-    }
-
-    function leaveGame() {
-      socket.emit('leave_game');
-      document.getElementById('team-1-list').innerHTML = ''; 
-      document.getElementById('team-2-list').innerHTML = '';
-      document.getElementById('room-chat-box').innerHTML = ''; 
-      showScreen('rooms-screen');
-    }
-
-    function switchTeam() {
-      socket.emit('switch_team');
-    }
-
-    function kickPlayer(playerName) {
-      socket.emit('kick_player', playerName);
-    }
-
-    function startGame() {
-      socket.emit('start_game');
-    }
-
-    function submitAsk() {
-        const cardValue = document.getElementById('ask-card').value;
-        const targetValue = document.getElementById('target-player').value;
-
-        if (cardValue === "") {
-            alert("Choose a card!");
-            return;
-        }
-
-        if (targetValue === "") {
-            alert("Choose a player!");
-            return;
-        }
-
-        const card = JSON.parse(cardValue);
-        const target = Number(targetValue);
-
-        console.log("Asking for:", card);
-        console.log("Asking player:", target);
-
-        askCard(card, target);
-    }
-
-    function askCard(choice, target) {
-      socket.emit('card_asked', choice, target);
-    }
-    function buildSuitDeclaration() {
-        const suitValue = document.getElementById('declare-suit').value;
-        const container = document.getElementById('suit-declaration-inputs');
-
-        container.innerHTML = '';
-
-        if (suitValue === '') return;
-        
-        const suitIndex = Number(suitValue);
-
-        const me = currentRoomData.players.find(player => player.name === myId);
-        if (!me) return;  
-        const teammates = currentRoomData.players.filter(player => player.team === me.team);
-        
-        for (let rank = 0; rank < 6; rank++) {
-            const row = document.createElement('div');
-            row.style.marginBottom = "5px"; 
-
-            const label = document.createElement('label');
-            label.innerText = getCardDisplayName(suitIndex, rank) + ': ';
-            label.style.display = "inline-block";
-            label.style.width = "140px";
-
-            const select = document.createElement('select');
-            select.id = `declare-rank-${rank}`;
-
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = 'Choose player';
-            select.appendChild(defaultOption);
-
-            teammates.forEach(player => {
-              const option = document.createElement('option');
-              const playerIndex = currentRoomData.players.findIndex(p => p.name === player.name);
-              option.value = playerIndex;
-              option.textContent = player.name;
-              select.appendChild(option);
-            });
-
-            row.appendChild(label);
-            row.appendChild(select);
-            container.appendChild(row);
-        }
-    }
-
-    function submitSuitDeclaration() {
-        const suitValue = document.getElementById('declare-suit').value;
-
-        if (suitValue === '') {
-            alert('Choose a suit!');
-            return;
-        }
-
-        const suit = Number(suitValue);
-        const holders = [];
-
-        for (let rank = 0; rank < 6; rank++) {
-            const value = document.getElementById(`declare-rank-${rank}`).value;
-
-            if (value === '') {
-                alert(`Choose a player for Rank ${rank}!`);
-                return;
-            }
-
-            holders.push(Number(value));
-        }
-
-        socket.emit('declare_suit', suit, holders);
-    }
-
-    function passTurn() {
-      const passTarget = document.getElementById('pass-target').value;
-
-      if (passTarget === '') { 
-        alert('Choose a teammate to pass to!'); 
-        return;
-      }
-
-      socket.emit('pass_turn', Number(passTarget));
-    }
-
-    function handleTyping(context) {
-      socket.emit('typing', { context: context, isTyping: true });
-      clearTimeout(typingTimeout);
-      
-      typingTimeout = setTimeout(() => {
-        socket.emit('typing', { context: context, isTyping: false });
-      }, 2000);
-    }
-
-    function sendChat(event, context) {
-      event.preventDefault(); 
-      const input = document.getElementById(`${context}-chat-input`);
-      const msg = input.value;
-      
-      if (msg.trim() !== '') {
-        socket.emit('chat_message', msg);
-        input.value = '';
-        
-        socket.emit('typing', { context: context, isTyping: false });
-        clearTimeout(typingTimeout);
-      }
-    }
-
-    function updateGameListUI(games) {
-      const listContainer = document.getElementById('active-games-list');
-      listContainer.innerHTML = '';
-
-      const gameNames = Object.keys(games);
-      
-      if (gameNames.length === 0) {
-        listContainer.innerHTML = '<p>No active games right now (go touch grass)... #fairs</p>';
-        return;
-      }
-
-      gameNames.forEach(roomName => {
-        const playerCount = games[roomName].players.length;
-        const isFull = playerCount >= 6;
-        
-        const gameDiv = document.createElement('div');
-        gameDiv.className = 'game-item';
-        
-        gameDiv.innerHTML = `
-          <span>${roomName} (${playerCount}/6 players)</span>
-          <button onclick="joinGame('${roomName}')" ${isFull ? 'disabled' : ''}>
-            ${isFull ? 'FULL' : 'Join Game'}
-          </button>`
-        ;
-        
-        listContainer.appendChild(gameDiv);
-      });
-    }
-
-    function getCardImageName(suit, rank) {
-      const cardMap = [
-        ['card_spades_02', 'card_spades_03', 'card_spades_04', 'card_spades_05', 'card_spades_06', 'card_spades_07'],
-        ['card_spades_09', 'card_spades_10', 'card_spades_J', 'card_spades_Q', 'card_spades_K', 'card_spades_A'],
-        ['card_hearts_02', 'card_hearts_03', 'card_hearts_04', 'card_hearts_05', 'card_hearts_06', 'card_hearts_07'],
-        ['card_hearts_09', 'card_hearts_10', 'card_hearts_J', 'card_hearts_Q', 'card_hearts_K', 'card_hearts_A'],
-        ['card_clubs_02', 'card_clubs_03', 'card_clubs_04', 'card_clubs_05', 'card_clubs_06', 'card_clubs_07'],
-        ['card_clubs_09', 'card_clubs_10', 'card_clubs_J', 'card_clubs_Q', 'card_clubs_K', 'card_clubs_A'],
-        ['card_diamonds_02', 'card_diamonds_03', 'card_diamonds_04', 'card_diamonds_05', 'card_diamonds_06', 'card_diamonds_07'],
-        ['card_diamonds_09', 'card_diamonds_10', 'card_diamonds_J', 'card_diamonds_Q', 'card_diamonds_K', 'card_diamonds_A'],
-        ['card_spades_08', 'card_hearts_08', 'card_clubs_08', 'card_diamonds_08', 'card_joker_black', 'card_joker_red']
-      ];
-      return cardMap[suit][rank] + '.png'; 
-    }
-
-    function getCardDisplayName(suit, rank) {
-      const nameMap = [
-        ['2 of Spades', '3 of Spades', '4 of Spades', '5 of Spades', '6 of Spades', '7 of Spades'],
-        ['9 of Spades', '10 of Spades', 'Jack of Spades', 'Queen of Spades', 'King of Spades', 'Ace of Spades'],
-        ['2 of Hearts', '3 of Hearts', '4 of Hearts', '5 of Hearts', '6 of Hearts', '7 of Hearts'],
-        ['9 of Hearts', '10 of Hearts', 'Jack of Hearts', 'Queen of Hearts', 'King of Hearts', 'Ace of Hearts'],
-        ['2 of Clubs', '3 of Clubs', '4 of Clubs', '5 of Clubs', '6 of Clubs', '7 of Clubs'],
-        ['9 of Clubs', '10 of Clubs', 'Jack of Clubs', 'Queen of Clubs', 'King of Clubs', 'Ace of Clubs'],
-        ['2 of Diamonds', '3 of Diamonds', '4 of Diamonds', '5 of Diamonds', '6 of Diamonds', '7 of Diamonds'],
-        ['9 of Diamonds', '10 of Diamonds', 'Jack of Diamonds', 'Queen of Diamonds', 'King of Diamonds', 'Ace of Diamonds'],
-        ['8 of Spades', '8 of Hearts', '8 of Clubs', '8 of Diamonds', 'Black Joker', 'Red Joker']
-      ];
-      return nameMap[suit][rank];
-    }
-
-    function closeGameOverModal() {
-      document.getElementById('game-over-modal').style.display = 'none';
-    }
-  </script>
+  <!-- Rename -->
+  <div id="modal-rename" class="modal" hidden>
+    <form id="rename-form" class="modal-card" autocomplete="off">
+      <h2>Change your name</h2>
+      <p class="muted">wow so indecisive... enter ur new name:</p>
+      <input id="rename-input" type="text" maxlength="20" aria-label="New name">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-rename">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Rules -->
+  <div id="modal-rules" class="modal" hidden>
+    <div class="modal-card wide" role="dialog" aria-modal="true">
+      <h2>How to play Fish</h2>
+      <ul class="rules">
+        <li><strong>Teams.</strong> Six players, two teams of three. Teammates sit alternately, and all 54 cards (including the 8s and both Jokers) are dealt out, 9 each.</li>
+        <li><strong>Half-suits.</strong> The deck is split into nine sets of six: Low (2&ndash;7) and High (9&ndash;A) of each suit, plus the 8s and Jokers.</li>
+        <li><strong>Asking.</strong> On your turn, ask an opponent for a specific card. You must already hold at least one card from that half-suit, and not the card you're asking for. If they have it, they hand it over and you go again. If not, the turn passes to them.</li>
+        <li><strong>Declaring.</strong> When your team thinks it holds a whole half-suit, declare it by naming which teammate holds each card. Right: your team scores. Wrong: the other team does.</li>
+        <li><strong>Out of cards?</strong> If it's your turn and your hand is empty, pass the turn to a teammate who still has cards.</li>
+        <li><strong>Winning.</strong> The game ends once all nine half-suits are declared. Most half-suits wins.</li>
+      </ul>
+      <div class="modal-actions"><button class="btn btn-primary" data-close="modal-rules">Got it</button></div>
+    </div>
+  </div>
+
+  <!-- Another tab took over -->
+  <div id="modal-replaced" class="modal" hidden>
+    <div class="modal-card center">
+      <h2>Open in another tab</h2>
+      <p class="muted">This game is now running in another tab, so this one was paused. Use this tab instead?</p>
+      <button class="btn btn-primary" onclick="location.reload()">Use this tab</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
