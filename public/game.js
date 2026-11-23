@@ -42,7 +42,8 @@ class Game {
     declareSuit(suit, holders) {
         let stat = true;
         for (let a = 0; a<6; a++) {
-            if (!(this.players[holders[a]].hasCard([suit, a])))
+            const holder = this.players[holders[a]];
+            if (!holder || !holder.hasCard([suit, a]))
             {
                 stat = false;
             }
